@@ -72,11 +72,21 @@ class Problem:
 
 
 @dataclass(slots=True)
+class Findings:
+    """What a single pass over the system found."""
+
+    problems: dict[str, Problem]
+    # Entities left out by the user's exclusions, per exclusion type.
+    skipped: dict[str, int]
+
+
+@dataclass(slots=True)
 class ScanResult:
-    """Outcome of one scan."""
+    """Outcome of one scan, including confirmation."""
 
     candidates: dict[str, Problem] = field(default_factory=dict)
     confirmed: dict[str, Problem] = field(default_factory=dict)
+    skipped: dict[str, int] | None = None  # None until the first scan
 
 
 class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
@@ -100,6 +110,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         # Confirmed problems from before a reload or restart, so their
         # "problem" events are not fired a second time.
         self._restored: dict[str, Problem] = {}
+        # Problems confirmed since install; only ever goes up.
+        self.faults_total = 0
         self._issue_ids: set[str] = set()
 
     @property
@@ -117,6 +129,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         self._restored = {
             pid: Problem(**problem) for pid, problem in data["confirmed"].items()
         }
+        self.faults_total = data.get("faults_total", 0)
 
     async def async_unload(self) -> None:
         """Persist state and withdraw our repair issues."""
@@ -131,6 +144,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         return {
             "streaks": self.streaks,
             "confirmed": {pid: p.as_dict() for pid, p in confirmed.items()},
+            "faults_total": self.faults_total,
         }
 
     async def _async_update_data(self) -> ScanResult:
@@ -139,7 +153,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             # During startup integrations are still loading and look broken.
             return self.data or ScanResult(confirmed=dict(self._restored))
 
-        candidates = self.scan()
+        findings = self.scan()
+        candidates = findings.problems
         self.streaks = {pid: self.streaks.get(pid, 0) + 1 for pid in candidates}
 
         needed = int(self.options[CONF_CONFIRMATIONS])
@@ -152,11 +167,13 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         self._restored = {}
         # Runs after this result has become self.data.
         self._store.async_delay_save(self._data_to_store, 10)
-        return ScanResult(candidates=candidates, confirmed=confirmed)
+        return ScanResult(
+            candidates=candidates, confirmed=confirmed, skipped=findings.skipped
+        )
 
     @callback
-    def scan(self) -> dict[str, Problem]:
-        """Return every config entry and hub device that currently looks broken."""
+    def scan(self) -> Findings:
+        """Find every config entry and hub device that currently looks broken."""
         opts = self.options
         bad_states = {STATE_UNAVAILABLE}
         if opts[CONF_COUNT_UNKNOWN]:
@@ -172,29 +189,42 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         dev_reg = dr.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
-        entries = {
+        all_entries = {
             entry.entry_id: entry
             for entry in self.hass.config_entries.async_entries()
-            if not entry.disabled_by
-            and entry.source != SOURCE_IGNORE
-            and entry.domain not in skip_domains
-            and entry.entry_id not in ignored_entries
+            if not entry.disabled_by and entry.source != SOURCE_IGNORE
+        }
+        entries = {
+            entry_id: entry
+            for entry_id, entry in all_entries.items()
+            if entry.domain not in skip_domains and entry_id not in ignored_entries
         }
 
         # [bad, total] per config entry and per hub device
         entry_counts: defaultdict[str, list[int]] = defaultdict(lambda: [0, 0])
         device_counts: defaultdict[str, list[int]] = defaultdict(lambda: [0, 0])
         device_entry: dict[str, str] = {}
+        skipped = dict.fromkeys(
+            ("ignored_integrations", "ignored_entries", "ignored_devices"), 0
+        )
 
+        # Disabled entities have no state, so they are never counted.
         for state in self.hass.states.async_all():
             if state.domain in skip_entity_domains:
                 continue
             reg_entry = ent_reg.async_get(state.entity_id)
-            if (
-                reg_entry is None
-                or reg_entry.config_entry_id not in entries
-                or reg_entry.device_id in ignored_devices
-            ):
+            if reg_entry is None or reg_entry.config_entry_id not in all_entries:
+                continue
+            entry = all_entries[reg_entry.config_entry_id]
+            if entry.domain in skip_domains:
+                if entry.domain != DOMAIN:
+                    skipped["ignored_integrations"] += 1
+                continue
+            if entry.entry_id in ignored_entries:
+                skipped["ignored_entries"] += 1
+                continue
+            if reg_entry.device_id in ignored_devices:
+                skipped["ignored_devices"] += 1
                 continue
             is_bad = state.state in bad_states
             counts = entry_counts[reg_entry.config_entry_id]
@@ -250,7 +280,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 total=total,
             )
 
-        return problems
+        return Findings(problems=problems, skipped=skipped)
 
     @callback
     def _sync_issues_and_events(self, confirmed: dict[str, Problem]) -> None:
@@ -284,6 +314,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 },
             )
             if pid not in previous:
+                self.faults_total += 1
                 self.hass.bus.async_fire(EVENT_PROBLEM, problem.as_dict())
 
         for pid in previous.keys() - confirmed.keys():

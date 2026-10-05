@@ -109,11 +109,33 @@
     "sensor": {
       "problems": {
         "name": "Problems"
+      },
+      "faults_total": {
+        "name": "Faults found"
+      },
+      "skipped_entities": {
+        "name": "Skipped entities",
+        "state_attributes": {
+          "ignored_integrations": {
+            "name": "Ignored integrations"
+          },
+          "ignored_entries": {
+            "name": "Ignored integration entries"
+          },
+          "ignored_devices": {
+            "name": "Ignored devices"
+          }
+        }
       }
     },
     "binary_sensor": {
       "problem": {
         "name": "Problem detected"
+      }
+    },
+    "button": {
+      "scan_now": {
+        "name": "Scan now"
       }
     }
   },

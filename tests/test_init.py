@@ -50,6 +50,9 @@ async def test_setup_and_unload(hass: HomeAssistant) -> None:
     assert (
         hass.states.get("binary_sensor.device_doctor_problem_detected").state == "off"
     )
+    assert hass.states.get("sensor.device_doctor_faults_found").state == "0"
+    assert hass.states.get("sensor.device_doctor_skipped_entities").state == "0"
+    assert hass.states.get("button.device_doctor_scan_now") is not None
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
@@ -274,3 +277,18 @@ async def test_form_serializes_for_frontend(hass: HomeAssistant) -> None:
         (SECTION_ADVANCED, "expandable"),
     ]
     assert fields[2]["expanded"] is False
+
+
+async def test_scan_now_button(hass: HomeAssistant) -> None:
+    """Pressing the button runs a scan straight away."""
+    doctor = await _setup_doctor(hass)
+    with patch.object(
+        doctor.runtime_data, "async_refresh", wraps=doctor.runtime_data.async_refresh
+    ) as refresh:
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.device_doctor_scan_now"},
+            blocking=True,
+        )
+    refresh.assert_awaited_once()

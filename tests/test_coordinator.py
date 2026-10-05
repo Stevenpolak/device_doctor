@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.device_doctor.const import (
     CONF_IGNORED_DEVICES,
+    CONF_IGNORED_ENTRIES,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PROBLEM,
@@ -107,7 +108,7 @@ async def test_below_threshold_is_ignored(
 ) -> None:
     """Half unavailable is not more than 50%."""
     add_integration(hass, "half", [STATE_UNAVAILABLE, "1"])
-    assert coordinator.scan() == {}
+    assert coordinator.scan().problems == {}
 
 
 async def test_failed_entry_without_entities(
@@ -115,7 +116,7 @@ async def test_failed_entry_without_entities(
 ) -> None:
     """An entry that failed setup is flagged even with no entities."""
     entry = add_integration(hass, "broken", [], state=ConfigEntryState.SETUP_RETRY)
-    problem = coordinator.scan()[entry.entry_id]
+    problem = coordinator.scan().problems[entry.entry_id]
     assert problem.detail == "entry setup_retry"
     assert problem.total == 0
 
@@ -131,7 +132,7 @@ async def test_disabled_ignored_and_skipped_entries(
         hass, "ignored", [], source="ignore", state=ConfigEntryState.SETUP_ERROR
     )
     add_integration(hass, "group", [STATE_UNAVAILABLE])
-    assert coordinator.scan() == {}
+    assert coordinator.scan().problems == {}
 
 
 async def test_hub_devices_judged_individually(
@@ -145,7 +146,7 @@ async def test_hub_devices_judged_individually(
         [STATE_UNAVAILABLE, "1", STATE_UNAVAILABLE, "1", STATE_UNAVAILABLE, "1"],
         devices=2,
     )
-    problems = list(coordinator.scan().values())
+    problems = list(coordinator.scan().problems.values())
     assert len(problems) == 1
     assert problems[0].kind == "device"
     assert problems[0].title == "zha device 0"
@@ -156,7 +157,7 @@ async def test_hub_down_raises_one_problem(
 ) -> None:
     """When the whole hub is down its devices are not listed separately."""
     entry = add_integration(hass, "zha", [STATE_UNAVAILABLE] * 4, devices=2)
-    assert list(coordinator.scan()) == [entry.entry_id]
+    assert list(coordinator.scan().problems) == [entry.entry_id]
 
 
 async def test_repair_issue_lifecycle(
@@ -184,7 +185,7 @@ async def test_ignored_devices(
     """Ignored devices are left out, for hubs and for regular integrations."""
     add_integration(hass, "zha", [STATE_UNAVAILABLE, "1"], devices=2)
     add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE], devices=1)
-    assert len(coordinator.scan()) == 2
+    assert len(coordinator.scan().problems) == 2
 
     dev_reg = dr.async_get(hass)
     ignored = [
@@ -195,7 +196,7 @@ async def test_ignored_devices(
         coordinator.config_entry,
         options={**DEFAULT_OPTIONS, CONF_IGNORED_DEVICES: ignored},
     )
-    assert coordinator.scan() == {}
+    assert coordinator.scan().problems == {}
 
 
 async def test_events_not_repeated_after_reload(hass: HomeAssistant) -> None:
@@ -231,3 +232,65 @@ async def test_loads_streaks_from_0_2_storage(
     await coordinator.async_load()
     assert coordinator.streaks == {"abc": 3}
     await coordinator.async_unload()
+
+
+async def test_skipped_entities_per_exclusion(
+    hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
+) -> None:
+    """Entities left out by the exclusions are counted per exclusion type."""
+    add_integration(hass, "group", ["on", "off"])  # ignored integration type
+    tv = add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE])
+    add_integration(hass, "zha", ["1", "2", "3"], devices=3)
+    sensor = dr.async_get(hass).async_get_device(identifiers={("zha", "device_0")})
+    hass.config_entries.async_update_entry(
+        coordinator.config_entry,
+        options={
+            **DEFAULT_OPTIONS,
+            CONF_IGNORED_ENTRIES: [tv.entry_id],
+            CONF_IGNORED_DEVICES: [sensor.id],
+        },
+    )
+
+    assert coordinator.scan().skipped == {
+        "ignored_integrations": 2,
+        "ignored_entries": 1,
+        "ignored_devices": 1,
+    }
+
+
+async def test_disabled_entities_are_not_counted(
+    hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
+) -> None:
+    """Disabled entities have no state and never count as unavailable."""
+    entry = add_integration(hass, "shelly", ["on"])
+    ent_reg = er.async_get(hass)
+    for i in range(3):
+        ent_reg.async_get_or_create(
+            "sensor",
+            "shelly",
+            f"disabled_{i}",
+            config_entry=entry,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    assert coordinator.scan().problems == {}
+
+
+async def test_faults_total_counts_and_persists(hass: HomeAssistant) -> None:
+    """Each newly confirmed problem adds one; the total survives a reload."""
+    entry = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    entry.add_to_hass(hass)
+    add_integration(hass, "p1", [STATE_UNAVAILABLE])
+    add_integration(hass, "fancoil", [STATE_UNAVAILABLE])
+
+    first = DeviceDoctorCoordinator(hass, entry)
+    await first.async_refresh()
+    await first.async_refresh()
+    await first.async_refresh()  # still broken: not counted again
+    assert first.faults_total == 2
+    await first.async_unload()
+
+    second = DeviceDoctorCoordinator(hass, entry)
+    await second.async_load()
+    await second.async_refresh()
+    assert second.faults_total == 2
+    await second.async_unload()

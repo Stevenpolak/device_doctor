@@ -76,6 +76,9 @@ Disabled and ignored integrations are always skipped.
 |---|---|
 | `sensor.device_doctor_problems` | Number of confirmed problems; the `problems` attribute lists them |
 | `binary_sensor.device_doctor_problem_detected` | `on` while any problem is confirmed |
+| `sensor.device_doctor_faults_found` | Running total of problems confirmed since install (diagnostic) |
+| `sensor.device_doctor_skipped_entities` | Entities left out by your exclusions, with a count per exclusion type as attributes (diagnostic) |
+| `button.device_doctor_scan_now` | Scan immediately instead of waiting for the next interval (configuration). A manual scan counts towards the confirmations. |
 
 ## Actions
 

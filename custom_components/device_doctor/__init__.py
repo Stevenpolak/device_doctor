@@ -11,7 +11,7 @@ from .const import DOMAIN
 from .coordinator import DeviceDoctorConfigEntry, DeviceDoctorCoordinator
 from .services import async_setup_services
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
