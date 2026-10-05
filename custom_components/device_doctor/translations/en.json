@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Device Doctor",
+        "description": "Device Doctor scans all integrations and devices on a schedule. It raises a repair when an integration fails to set up, or when most entities of an integration or hub device stay unavailable. Thresholds and exclusions can be changed afterwards under Configure."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Device Doctor is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Device Doctor options",
+        "data": {
+          "scan_interval": "Scan interval",
+          "confirmations": "Confirmations",
+          "threshold": "Unavailable threshold",
+          "skip_domains": "Ignored integrations",
+          "hub_domains": "Hub integrations (checked per device)",
+          "skip_entity_domains": "Ignored entity types",
+          "count_unknown": "Count 'unknown' as unavailable"
+        },
+        "data_description": {
+          "scan_interval": "How often to scan.",
+          "confirmations": "How many scans in a row something must look broken before a repair is raised. 2 filters out reboots and short blips.",
+          "threshold": "Flag an integration or device when more than this share of its entities is unavailable.",
+          "skip_domains": "Integrations that are never flagged, such as helpers that only mirror other entities.",
+          "hub_domains": "Integrations with one entry for many devices (Zigbee, Z-Wave, MQTT). Each device is judged on its own.",
+          "skip_entity_domains": "Entity types that normally sit at 'unknown' until used, such as buttons and scenes.",
+          "count_unknown": "Some integrations report 'unknown' rather than 'unavailable' when they lose connection."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "problems": {
+        "name": "Problems"
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Problem detected"
+      }
+    }
+  },
+  "issues": {
+    "entry_problem": {
+      "title": "{title} ({domain}) is not working",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reload {title}?",
+            "description": "{title} looks broken: {bad} of {total} entities are unavailable, {detail}.\n\nLast error: {reason}\n\nReloading the integration often restores a connection that silently died. If the problem persists, Device Doctor will raise this repair again on the next scans."
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "The integration could not be reloaded. Check the logs for the cause."
+        }
+      }
+    },
+    "device_problem": {
+      "title": "{title} is unavailable",
+      "description": "{bad} of {total} entities of this {domain} device ({detail}) are unavailable. The device may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again."
+    }
+  }
+}
