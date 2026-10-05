@@ -1,4 +1,10 @@
-# Device Doctor
+<p align="center">
+  <img src="custom_components/device_doctor/brand/icon@2x.png" width="128" alt="Device Doctor logo: a white heart with a pulse line on a blue background" />
+</p>
+
+<h1 align="center">Device Doctor</h1>
+
+<p align="center">Finds dead devices and silently failing integrations in Home Assistant.</p>
 
 Device Doctor keeps an eye on your Home Assistant and tells you when an
 integration or device quietly stops working: the kind of failure you
@@ -146,17 +152,14 @@ A device is only flagged when more than half of its checked sensors are
 unavailable. Disabled sensors, buttons and scenes don't count. You can change
 the threshold under **Configure → Scanning**.
 
-**Why does HACS show no icon for Device Doctor?**
-The icon ships inside the integration, which Home Assistant shows since 2026.3,
-but the HACS store still looks icons up elsewhere. It's a known HACS issue
-([hacs/integration#5171](https://github.com/hacs/integration/issues/5171)) and
-the icon does show in Home Assistant itself.
+**Which Zigbee integrations are checked?**
+All the common ones, device by device:
 
-## Development
+- **ZHA**, Home Assistant's built-in Zigbee integration
+- **Zigbee2MQTT**, through the MQTT integration
+- **deCONZ** (ConBee, RaspBee)
+- **Philips Hue**, for devices paired to a Hue bridge
 
-```bash
-uv venv --python 3.13 .venv
-uv pip install --python .venv/bin/python -r requirements_test.txt ruff
-.venv/bin/pytest
-.venv/bin/ruff check . && .venv/bin/ruff format --check .
-```
+The same goes for **Z-Wave JS** and **Matter**. Use another hub, or a Zigbee
+setup that's not in this list? Add its integration under **Configure →
+Advanced → Hub integrations** and each of its devices is checked on its own.
