@@ -1,114 +1,84 @@
 # Device Doctor
 
-Finds dead devices and silently failing integrations in Home Assistant.
+Device Doctor keeps an eye on your Home Assistant and tells you when an
+integration or device quietly stops working: the kind of failure you
+normally only notice days later, when a graph has gone flat or an automation
+didn't run.
 
-Sometimes an integration stays **loaded** while every one of its entities is
-unavailable. Nothing in the UI flags it, and you only notice days later when a
-dashboard is empty or an automation didn't run. Device Doctor scans your whole
-system on a schedule and raises a **repair** under *Settings → Repairs* when it
-finds:
+<img width="100%" alt="Two Device Doctor repairs in Home Assistant: an ESPHome integration that is not working and a Zigbee remote that is unavailable" src="docs/repairs.png" />
 
-- an integration that failed to set up (`setup_error`, `setup_retry`, …), even
-  if it never created an entity;
-- an integration where most entities are unavailable while it claims to be
-  loaded;
-- a single device behind a hub (Zigbee, Z-Wave, MQTT, Matter, …) that has gone
-  silent.
+## Why
 
-A problem has to be seen on several scans in a row before it is raised, so
-reboots and short blips don't cause alerts. Repairs disappear by themselves
-once things recover.
+Home Assistant shows an integration as *loaded* as long as it started
+successfully. If its connection dies afterwards, it often just stays *loaded*
+while every sensor behind it turns *unavailable*. Nothing warns you.
 
-Clicking a repair gives you a choice:
+Device Doctor checks your whole system every few minutes. When something is
+broken, it shows up under **Settings → Repairs**, right next to Home
+Assistant's own warnings, and disappears by itself once it works again.
 
-- **Reload integration** (integrations only): reloading often revives a
-  connection that died silently.
-- **Ignore this integration / device**: for things that are allowed to be
-  offline. Device Doctor stops checking that one integration entry or device;
-  undo it under *Configure → Exclusions*.
+It catches:
+
+- an integration that failed to start, or keeps retrying
+- an integration that claims to be running while most of its sensors are unavailable
+- a single Zigbee, Z-Wave, Matter or MQTT device that has gone silent, such as a
+  leak sensor with a flat battery
+
+To avoid false alarms, something has to look broken on two scans in a row
+before you hear about it. A reboot or a short Wi-Fi hiccup won't bother you.
 
 ## Installation
 
-### HACS (custom repository)
+Device Doctor needs Home Assistant 2026.3 or newer.
 
-1. HACS → ⋮ → **Custom repositories**
-2. Add `https://github.com/Stevenpolak/device_doctor` as type **Integration**
-3. Install **Device Doctor** and restart Home Assistant
-4. *Settings → Devices & services → Add integration →* **Device Doctor**
+1. In HACS, open the menu (⋮) and choose **Custom repositories**
+2. Add `https://github.com/Stevenpolak/device_doctor` with type **Integration**
+3. Search for **Device Doctor**, download it, and restart Home Assistant
+4. Go to **Settings → Devices & services → Add integration** and pick **Device Doctor**
 
-### Manual
+The setup dialog shows the settings straight away. The defaults suit most
+homes, so you can just click **Submit**.
 
-Copy `custom_components/device_doctor` into your `config/custom_components`
-folder and restart.
+## Usage
 
-Requires Home Assistant 2026.3 or newer.
+**When something breaks**, a repair appears under **Settings → Repairs**.
+Click it and choose:
 
-> **Missing icon in HACS?** The icon ships inside the integration (`brand/`),
-> which Home Assistant shows since 2026.3. The HACS store still looks up icons
-> in a central database that no longer accepts custom integrations, so it shows
-> a placeholder. This is a known HACS issue
-> ([hacs/integration#5171](https://github.com/hacs/integration/issues/5171))
-> and will resolve itself once HACS is updated.
+- **Reload integration**: restarts that one integration. This often brings back
+  a connection that silently died. (Only offered for integrations; reloading
+  your whole Zigbee network won't revive one sensor.)
+- **Ignore**: for things that are allowed to be offline, like a TV that is
+  switched off or a seasonal device. Device Doctor stops checking that one
+  integration or device.
 
-## Options
+**To change what is checked**, go to **Settings → Devices & services → Device
+Doctor → Configure**. The settings are grouped in three sections:
 
-The options are shown when you add the integration, and can be changed later
-under *Settings → Devices & services → Device Doctor → Configure*. The defaults
-work for most setups.
+- **Scanning**: how often to scan (10 minutes), how many scans in a row before
+  a repair is raised (2), and what share of a device's sensors must be
+  unavailable (more than 50 %)
+- **Exclusions**: integrations, single integration entries and devices that are
+  never checked. Everything you ignored from a repair ends up here, so this is
+  also where you undo it.
+- **Advanced**: which integrations are checked per device, which entity types
+  are skipped, and whether `unknown` counts as unavailable. You rarely need
+  these.
 
-| Section | Option | Default | Meaning |
-|---|---|---|---|
-| Scanning | Scan interval | 10 min | How often to scan |
-| | Confirmations | 2 | Scans in a row before a repair is raised |
-| | Unavailable threshold | 50 % | Flag when more than this share of entities is unavailable |
-| Exclusions | Ignored integrations | helpers, `group`, `mobile_app`, … | Integration types that are never flagged |
-| | Ignored integration entries | none | Single entries allowed to be offline, e.g. one ESPHome device |
-| | Ignored devices | none | Devices allowed to be offline, such as a TV that is switched off |
-| Advanced | Hub integrations | `zha`, `zwave_js`, `mqtt`, `matter`, `deconz`, `hue` | Judged per device instead of as a whole |
-| | Ignored entity types | `button`, `event`, `scene`, `update`, … | Types that sit at `unknown` until used |
-| | Count `unknown` | on | Some integrations report `unknown` when they lose connection |
+**On the Device Doctor device page** you'll find:
 
-Disabled and ignored integrations are always skipped.
+- **Problems**: how many problems there are right now
+- **Problem detected**: on while there is at least one problem
+- **Faults found**: how many problems were found since you installed it
+- **Skipped entities**: how many entities your exclusions leave out
+- **Scan now**: scans immediately, handy to check if a fix worked
 
-## Entities
+## Automations
 
-| Entity | |
-|---|---|
-| `sensor.device_doctor_problems` | Number of confirmed problems; the `problems` attribute lists them |
-| `binary_sensor.device_doctor_problem_detected` | `on` while any problem is confirmed |
-| `sensor.device_doctor_faults_found` | Running total of problems confirmed since install (diagnostic) |
-| `sensor.device_doctor_skipped_entities` | Entities left out by your exclusions, with a count per exclusion type as attributes (diagnostic) |
-| `button.device_doctor_scan_now` | Scan immediately instead of waiting for the next interval (configuration). A manual scan counts towards the confirmations. |
+Device Doctor fires an event when a problem is confirmed
+(`device_doctor_problem`) and when it clears (`device_doctor_recovered`), so you
+can build your own notifications.
 
-## Actions
-
-### `device_doctor.reload_problems`
-
-Reloads every integration Device Doctor currently reports as not working, the
-same as clicking *Reload* on each repair. Devices behind a hub are skipped,
-because reloading a whole Zigbee network won't revive one dead sensor.
-
-With *response* enabled it returns which integrations were reloaded:
-
-```yaml
-reloaded:
-  - P1 meter
-failed: []
-```
-
-Handy as a dashboard button. To reload one integration from an automation,
-use the built-in `homeassistant.reload_config_entry` with the `entry_id` from
-the event below.
-
-## Events
-
-- `device_doctor_problem`: a problem was confirmed
-- `device_doctor_recovered`: a confirmed problem cleared
-
-Both carry `id`, `kind` (`entry` or `device`), `title`, `domain`, `entry_id`,
-`detail`, `bad`, `total` and `reason`.
-
-### Example: push notification
+**Send a notification to your phone:**
 
 ```yaml
 automation:
@@ -121,11 +91,11 @@ automation:
         data:
           title: "Device Doctor"
           message: >
-            {{ trigger.event.data.title }} ({{ trigger.event.data.domain }}):
-            {{ trigger.event.data.bad }}/{{ trigger.event.data.total }} unavailable
+            {{ trigger.event.data.title }} stopped working
+            ({{ trigger.event.data.bad }} of {{ trigger.event.data.total }} sensors unavailable)
 ```
 
-### Example: reload automatically, once
+**Reload a broken integration automatically, once:**
 
 ```yaml
 automation:
@@ -141,9 +111,46 @@ automation:
           entry_id: "{{ trigger.event.data.entry_id }}"
 ```
 
-The event fires when a problem is first confirmed, not on every scan, so this
-reloads once per outage. If the reload doesn't help, the repair stays and you
-can look into it.
+The event fires when a problem is first found, not on every scan, so this
+reloads once per outage instead of over and over.
+
+There's also an action, **`device_doctor.reload_problems`**, that reloads every
+integration Device Doctor currently reports as broken. Put it behind a
+dashboard button for a one-tap "fix what you can".
+
+<details>
+<summary>Event data</summary>
+
+Both events carry:
+
+| Field | Example | Meaning |
+|---|---|---|
+| `kind` | `entry` / `device` | A whole integration, or one device behind a hub |
+| `title` | `P1 meter` | Name of the integration or device |
+| `domain` | `homewizard` | Integration type |
+| `entry_id` | `e417a3cb…` | Integration entry to reload |
+| `detail` | `entry loaded` / `Hallway` | Integration state, or the device's area |
+| `bad`, `total` | `32`, `32` | Unavailable sensors out of all checked sensors |
+| `reason` | `Timeout connecting…` | Last error, if the integration reported one |
+
+</details>
+
+## Questions
+
+**Why is a device flagged that is simply switched off?**
+Device Doctor can't know it's allowed to be off. Click its repair and choose
+**Ignore**.
+
+**Why isn't my device flagged even though some sensors are unavailable?**
+A device is only flagged when more than half of its checked sensors are
+unavailable. Disabled sensors, buttons and scenes don't count. You can change
+the threshold under **Configure → Scanning**.
+
+**Why does HACS show no icon for Device Doctor?**
+The icon ships inside the integration, which Home Assistant shows since 2026.3,
+but the HACS store still looks icons up elsewhere. It's a known HACS issue
+([hacs/integration#5171](https://github.com/hacs/integration/issues/5171)) and
+the icon does show in Home Assistant itself.
 
 ## Development
 
