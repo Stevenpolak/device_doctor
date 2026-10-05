@@ -19,8 +19,13 @@ A problem has to be seen on several scans in a row before it is raised, so
 reboots and short blips don't cause alerts. Repairs disappear by themselves
 once things recover.
 
-For broken integrations the repair offers a **Reload** button: reloading often
-revives a connection that died silently.
+Clicking a repair gives you a choice:
+
+- **Reload integration** (integrations only): reloading often revives a
+  connection that died silently.
+- **Ignore this integration / device**: for things that are allowed to be
+  offline. Device Doctor stops checking that one integration entry or device;
+  undo it under *Configure → Exclusions*.
 
 ## Installation
 
@@ -56,7 +61,8 @@ work for most setups.
 | Scanning | Scan interval | 10 min | How often to scan |
 | | Confirmations | 2 | Scans in a row before a repair is raised |
 | | Unavailable threshold | 50 % | Flag when more than this share of entities is unavailable |
-| Exclusions | Ignored integrations | helpers, `group`, `mobile_app`, … | Never flagged |
+| Exclusions | Ignored integrations | helpers, `group`, `mobile_app`, … | Integration types that are never flagged |
+| | Ignored integration entries | none | Single entries allowed to be offline, e.g. one ESPHome device |
 | | Ignored devices | none | Devices allowed to be offline, such as a TV that is switched off |
 | Advanced | Hub integrations | `zha`, `zwave_js`, `mqtt`, `matter`, `deconz`, `hue` | Judged per device instead of as a whole |
 | | Ignored entity types | `button`, `event`, `scene`, `update`, … | Types that sit at `unknown` until used |
@@ -70,6 +76,26 @@ Disabled and ignored integrations are always skipped.
 |---|---|
 | `sensor.device_doctor_problems` | Number of confirmed problems; the `problems` attribute lists them |
 | `binary_sensor.device_doctor_problem_detected` | `on` while any problem is confirmed |
+
+## Actions
+
+### `device_doctor.reload_problems`
+
+Reloads every integration Device Doctor currently reports as not working, the
+same as clicking *Reload* on each repair. Devices behind a hub are skipped,
+because reloading a whole Zigbee network won't revive one dead sensor.
+
+With *response* enabled it returns which integrations were reloaded:
+
+```yaml
+reloaded:
+  - P1 meter
+failed: []
+```
+
+Handy as a dashboard button. To reload one integration from an automation,
+use the built-in `homeassistant.reload_config_entry` with the `entry_id` from
+the event below.
 
 ## Events
 
@@ -95,6 +121,26 @@ automation:
             {{ trigger.event.data.title }} ({{ trigger.event.data.domain }}):
             {{ trigger.event.data.bad }}/{{ trigger.event.data.total }} unavailable
 ```
+
+### Example: reload automatically, once
+
+```yaml
+automation:
+  - alias: "Device Doctor auto-reload"
+    triggers:
+      - trigger: event
+        event_type: device_doctor_problem
+        event_data:
+          kind: entry
+    actions:
+      - action: homeassistant.reload_config_entry
+        data:
+          entry_id: "{{ trigger.event.data.entry_id }}"
+```
+
+The event fires when a problem is first confirmed, not on every scan, so this
+reloads once per outage. If the reload doesn't help, the repair stays and you
+can look into it.
 
 ## Development
 

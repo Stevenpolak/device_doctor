@@ -24,11 +24,13 @@
             "description": "Things that are allowed to be offline.",
             "data": {
               "skip_domains": "Ignored integrations",
+              "ignored_entries": "Ignored integration entries",
               "ignored_devices": "Ignored devices"
             },
             "data_description": {
-              "skip_domains": "Integrations that are never flagged, such as helpers that only mirror other entities.",
-              "ignored_devices": "Devices that may be offline, such as a TV that is switched off or a seasonal device."
+              "skip_domains": "Integration types that are never flagged, such as helpers that only mirror other entities.",
+              "ignored_entries": "Single integration entries that may be offline, without ignoring the whole integration type. Also set by 'Ignore' on a repair.",
+              "ignored_devices": "Devices that may be offline, such as a TV that is switched off. Also set by 'Ignore' on a repair."
             }
           },
           "advanced": {
@@ -76,11 +78,13 @@
             "description": "Things that are allowed to be offline.",
             "data": {
               "skip_domains": "Ignored integrations",
+              "ignored_entries": "Ignored integration entries",
               "ignored_devices": "Ignored devices"
             },
             "data_description": {
-              "skip_domains": "Integrations that are never flagged, such as helpers that only mirror other entities.",
-              "ignored_devices": "Devices that may be offline, such as a TV that is switched off or a seasonal device."
+              "skip_domains": "Integration types that are never flagged, such as helpers that only mirror other entities.",
+              "ignored_entries": "Single integration entries that may be offline, without ignoring the whole integration type. Also set by 'Ignore' on a repair.",
+              "ignored_devices": "Devices that may be offline, such as a TV that is switched off. Also set by 'Ignore' on a repair."
             }
           },
           "advanced": {
@@ -118,20 +122,51 @@
       "title": "{title} ({domain}) is not working",
       "fix_flow": {
         "step": {
-          "confirm": {
-            "title": "Reload {title}?",
-            "description": "{title} looks broken: {bad} of {total} entities are unavailable, {detail}.\n\nLast error: {reason}\n\nReloading the integration often restores a connection that silently died. If the problem persists, Device Doctor will raise this repair again on the next scans."
+          "init": {
+            "title": "{title} is not working",
+            "description": "{bad} of {total} entities are unavailable, {detail}.\n\nLast error: {reason}\n\nReloading often restores a connection that silently died. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "menu_options": {
+              "reload": "Reload integration",
+              "ignore": "Ignore this integration"
+            }
           }
         },
         "abort": {
           "entry_not_found": "This integration no longer exists.",
-          "reload_failed": "The integration could not be reloaded. Check the logs for the cause."
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
         }
       }
     },
     "device_problem": {
       "title": "{title} is unavailable",
-      "description": "{bad} of {total} entities of this {domain} device ({detail}) are unavailable. The device may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again."
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} is unavailable",
+            "description": "{bad} of {total} entities of this {domain} device ({detail}) are unavailable. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\nIf the device is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "menu_options": {
+              "ignore": "Ignore this device"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
+        }
+      }
+    }
+  },
+  "services": {
+    "reload_problems": {
+      "name": "Reload problem integrations",
+      "description": "Reloads every integration that Device Doctor currently reports as not working. Devices behind a hub are not reloaded."
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Device Doctor is not running."
     }
   }
 }

@@ -25,6 +25,7 @@ from .const import (
     CONF_COUNT_UNKNOWN,
     CONF_HUB_DOMAINS,
     CONF_IGNORED_DEVICES,
+    CONF_IGNORED_ENTRIES,
     CONF_SCAN_INTERVAL,
     CONF_SKIP_DOMAINS,
     CONF_SKIP_ENTITY_DOMAINS,
@@ -93,9 +94,12 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             name=DOMAIN,
             update_interval=timedelta(minutes=int(options[CONF_SCAN_INTERVAL])),
         )
-        self._store: Store[dict[str, int]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         # Consecutive scans each problem has been seen, keyed by problem id.
         self.streaks: dict[str, int] = {}
+        # Confirmed problems from before a reload or restart, so their
+        # "problem" events are not fired a second time.
+        self._restored: dict[str, Problem] = {}
         self._issue_ids: set[str] = set()
 
     @property
@@ -104,26 +108,39 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         return {**DEFAULT_OPTIONS, **self.config_entry.options}
 
     async def async_load(self) -> None:
-        """Restore streaks, so a restart does not reset confirmation."""
-        if (data := await self._store.async_load()) is not None:
-            self.streaks = data
+        """Restore state, so a restart does not reset confirmation."""
+        if (data := await self._store.async_load()) is None:
+            return
+        if "streaks" not in data:  # 0.1/0.2 stored the streaks only
+            data = {"streaks": data, "confirmed": {}}
+        self.streaks = data["streaks"]
+        self._restored = {
+            pid: Problem(**problem) for pid, problem in data["confirmed"].items()
+        }
 
     async def async_unload(self) -> None:
-        """Persist streaks and withdraw our repair issues."""
-        await self._store.async_save(self.streaks)
+        """Persist state and withdraw our repair issues."""
+        await self._store.async_save(self._data_to_store())
         for issue_id in self._issue_ids:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
         self._issue_ids.clear()
+
+    @callback
+    def _data_to_store(self) -> dict[str, Any]:
+        confirmed = self.data.confirmed if self.data else self._restored
+        return {
+            "streaks": self.streaks,
+            "confirmed": {pid: p.as_dict() for pid, p in confirmed.items()},
+        }
 
     async def _async_update_data(self) -> ScanResult:
         """Run one scan."""
         if not self.hass.is_running:
             # During startup integrations are still loading and look broken.
-            return self.data or ScanResult()
+            return self.data or ScanResult(confirmed=dict(self._restored))
 
         candidates = self.scan()
         self.streaks = {pid: self.streaks.get(pid, 0) + 1 for pid in candidates}
-        self._store.async_delay_save(lambda: self.streaks, 10)
 
         needed = int(self.options[CONF_CONFIRMATIONS])
         confirmed = {
@@ -132,6 +149,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             if self.streaks[pid] >= needed
         }
         self._sync_issues_and_events(confirmed)
+        self._restored = {}
+        # Runs after this result has become self.data.
+        self._store.async_delay_save(self._data_to_store, 10)
         return ScanResult(candidates=candidates, confirmed=confirmed)
 
     @callback
@@ -145,6 +165,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         hub_domains = set(opts[CONF_HUB_DOMAINS])
         skip_entity_domains = set(opts[CONF_SKIP_ENTITY_DOMAINS])
         ignored_devices = set(opts[CONF_IGNORED_DEVICES])
+        ignored_entries = set(opts[CONF_IGNORED_ENTRIES])
         threshold = float(opts[CONF_THRESHOLD]) / 100
 
         ent_reg = er.async_get(self.hass)
@@ -157,6 +178,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             if not entry.disabled_by
             and entry.source != SOURCE_IGNORE
             and entry.domain not in skip_domains
+            and entry.entry_id not in ignored_entries
         }
 
         # [bad, total] per config entry and per hub device
@@ -233,33 +255,32 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
     @callback
     def _sync_issues_and_events(self, confirmed: dict[str, Problem]) -> None:
         """Create, update and delete repair issues; fire transition events."""
-        previous = self.data.confirmed if self.data else {}
+        previous = self.data.confirmed if self.data else self._restored
 
         for pid, problem in confirmed.items():
+            placeholders = {
+                "title": problem.title,
+                "domain": problem.domain,
+                "detail": problem.detail,
+                "bad": str(problem.bad),
+                "total": str(problem.total),
+                "reason": problem.reason or "-",
+            }
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
                 problem.issue_id,
-                # Reloading a whole hub won't revive one dead Zigbee sensor.
-                is_fixable=problem.kind == KIND_ENTRY,
+                # Every repair offers "ignore"; integrations also "reload".
+                is_fixable=True,
                 is_persistent=False,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key=f"{problem.kind}_problem",
-                translation_placeholders={
-                    "title": problem.title,
-                    "domain": problem.domain,
-                    "detail": problem.detail,
-                    "bad": str(problem.bad),
-                    "total": str(problem.total),
-                    "reason": problem.reason or "-",
-                },
+                translation_placeholders=placeholders,
                 data={
+                    **placeholders,
+                    "id": problem.id,
+                    "kind": problem.kind,
                     "entry_id": problem.entry_id,
-                    "title": problem.title,
-                    "detail": problem.detail,
-                    "bad": problem.bad,
-                    "total": problem.total,
-                    "reason": problem.reason or "-",
                 },
             )
             if pid not in previous:

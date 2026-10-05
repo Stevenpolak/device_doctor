@@ -1,0 +1,7 @@
+{
+  "services": {
+    "reload_problems": {
+      "service": "mdi:restart"
+    }
+  }
+}

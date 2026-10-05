@@ -13,12 +13,16 @@ from homeassistant.helpers import (
     issue_registry as ir,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_capture_events,
+)
 
 from custom_components.device_doctor.const import (
     CONF_IGNORED_DEVICES,
     DEFAULT_OPTIONS,
     DOMAIN,
+    EVENT_PROBLEM,
 )
 from custom_components.device_doctor.coordinator import DeviceDoctorCoordinator
 
@@ -192,3 +196,38 @@ async def test_ignored_devices(
         options={**DEFAULT_OPTIONS, CONF_IGNORED_DEVICES: ignored},
     )
     assert coordinator.scan() == {}
+
+
+async def test_events_not_repeated_after_reload(hass: HomeAssistant) -> None:
+    """A reload or restart does not announce known problems again."""
+    events = async_capture_events(hass, EVENT_PROBLEM)
+    entry = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    entry.add_to_hass(hass)
+    broken = add_integration(hass, "p1", [STATE_UNAVAILABLE])
+
+    first = DeviceDoctorCoordinator(hass, entry)
+    await first.async_refresh()
+    await first.async_refresh()
+    assert len(events) == 1
+    await first.async_unload()
+
+    second = DeviceDoctorCoordinator(hass, entry)
+    await second.async_load()
+    await second.async_refresh()
+    assert broken.entry_id in second.data.confirmed
+    assert len(events) == 1
+    await second.async_unload()
+
+
+async def test_loads_streaks_from_0_2_storage(
+    hass: HomeAssistant, hass_storage: dict
+) -> None:
+    """Storage written by 0.1/0.2 (streaks only) still loads."""
+    hass_storage[DOMAIN] = {"version": 1, "key": DOMAIN, "data": {"abc": 3}}
+    entry = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    entry.add_to_hass(hass)
+
+    coordinator = DeviceDoctorCoordinator(hass, entry)
+    await coordinator.async_load()
+    assert coordinator.streaks == {"abc": 3}
+    await coordinator.async_unload()

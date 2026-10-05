@@ -6,9 +6,12 @@ from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState, ConfigFlow
+from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import config_validation as cv
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.setup import async_setup_component
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -23,12 +26,14 @@ from custom_components.device_doctor.config_flow import build_schema
 from custom_components.device_doctor.const import (
     CONF_CONFIRMATIONS,
     CONF_IGNORED_DEVICES,
+    CONF_IGNORED_ENTRIES,
     CONF_THRESHOLD,
     DEFAULT_OPTIONS,
     DOMAIN,
     SECTION_ADVANCED,
     SECTION_EXCLUSIONS,
     SECTION_SCANNING,
+    SERVICE_RELOAD_PROBLEMS,
 )
 from custom_components.device_doctor.repairs import async_create_fix_flow
 
@@ -90,25 +95,31 @@ async def test_config_and_options_flow(hass: HomeAssistant) -> None:
         assert entry.options[CONF_CONFIRMATIONS] == DEFAULT_OPTIONS[CONF_CONFIRMATIONS]
 
 
-def _issue_data(entry_id: str) -> dict[str, object]:
+def _issue_data(kind: str, problem_id: str, entry_id: str) -> dict[str, object]:
     return {
+        "id": problem_id,
+        "kind": kind,
         "entry_id": entry_id,
         "title": "P1 meter",
+        "domain": "p1",
         "detail": "entry loaded",
-        "bad": 32,
-        "total": 32,
+        "bad": "32",
+        "total": "32",
         "reason": "-",
     }
 
 
-async def _start_fix_flow(hass: HomeAssistant, entry_id: str):
-    flow = await async_create_fix_flow(hass, "entry_x", _issue_data(entry_id))
+async def _start_fix_flow(
+    hass: HomeAssistant, data: dict[str, object], expected_menu: list[str]
+):
+    flow = await async_create_fix_flow(hass, "issue", data)
     flow.hass = hass
     flow.flow_id = "test"
     flow.handler = DOMAIN
     flow.context = {}
     result = await flow.async_step_init()
-    assert result["type"] is FlowResultType.FORM
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == expected_menu
     assert result["description_placeholders"]["bad"] == "32"
     return flow
 
@@ -132,13 +143,25 @@ def _mock_p1(
     return target, setup_entry
 
 
+async def _setup_doctor(hass: HomeAssistant) -> MockConfigEntry:
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    await hass.async_block_till_done()
+    return doctor
+
+
 @pytest.mark.usefixtures("p1_flow_handler")
 async def test_fix_flow_reloads_entry(hass: HomeAssistant) -> None:
-    """Confirming the repair reloads the broken integration."""
+    """Choosing 'reload' reloads the broken integration."""
     target, setup_entry = _mock_p1(hass, True)
 
-    flow = await _start_fix_flow(hass, target.entry_id)
-    result = await flow.async_step_confirm({})
+    flow = await _start_fix_flow(
+        hass,
+        _issue_data("entry", target.entry_id, target.entry_id),
+        ["reload", "ignore"],
+    )
+    result = await flow.async_step_reload()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert target.state is ConfigEntryState.LOADED
@@ -147,8 +170,10 @@ async def test_fix_flow_reloads_entry(hass: HomeAssistant) -> None:
 
 async def test_fix_flow_aborts_for_missing_entry(hass: HomeAssistant) -> None:
     """A repair for an integration that was removed aborts cleanly."""
-    flow = await _start_fix_flow(hass, "does_not_exist")
-    result = await flow.async_step_confirm({})
+    flow = await _start_fix_flow(
+        hass, _issue_data("entry", "gone", "gone"), ["reload", "ignore"]
+    )
+    result = await flow.async_step_reload()
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "entry_not_found"
 
@@ -158,11 +183,84 @@ async def test_fix_flow_aborts_when_reload_fails(hass: HomeAssistant) -> None:
     """If the integration still can't set up, the repair stays open."""
     target, setup_entry = _mock_p1(hass, False)
 
-    flow = await _start_fix_flow(hass, target.entry_id)
-    result = await flow.async_step_confirm({})
+    flow = await _start_fix_flow(
+        hass,
+        _issue_data("entry", target.entry_id, target.entry_id),
+        ["reload", "ignore"],
+    )
+    result = await flow.async_step_reload()
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reload_failed"
     setup_entry.assert_awaited_once()
+
+
+async def test_fix_flow_ignores_entry(hass: HomeAssistant) -> None:
+    """Choosing 'ignore' on an integration adds that one entry to the exclusions."""
+    doctor = await _setup_doctor(hass)
+
+    flow = await _start_fix_flow(
+        hass, _issue_data("entry", "p1_entry", "p1_entry"), ["reload", "ignore"]
+    )
+    result = await flow.async_step_ignore()
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert doctor.options[CONF_IGNORED_ENTRIES] == ["p1_entry"]
+    assert doctor.options[CONF_IGNORED_DEVICES] == []
+    # The options change reloaded Device Doctor.
+    assert doctor.state is ConfigEntryState.LOADED
+
+
+async def test_fix_flow_ignores_device(hass: HomeAssistant) -> None:
+    """Device repairs only offer 'ignore', which adds the device."""
+    doctor = await _setup_doctor(hass)
+
+    flow = await _start_fix_flow(
+        hass, _issue_data("device", "leak_sensor", "zha_entry"), ["ignore"]
+    )
+    result = await flow.async_step_ignore()
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert doctor.options[CONF_IGNORED_DEVICES] == ["leak_sensor"]
+    assert doctor.options[CONF_IGNORED_ENTRIES] == []
+
+
+async def test_fix_flow_ignore_needs_doctor(hass: HomeAssistant) -> None:
+    """Ignoring aborts when Device Doctor itself is not running."""
+    flow = await _start_fix_flow(
+        hass, _issue_data("device", "leak_sensor", "zha_entry"), ["ignore"]
+    )
+    result = await flow.async_step_ignore()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_loaded"
+
+
+@pytest.mark.usefixtures("p1_flow_handler")
+async def test_reload_problems_action(hass: HomeAssistant) -> None:
+    """The action reloads every integration with a confirmed problem."""
+    target, setup_entry = _mock_p1(hass, True)
+    reg_entry = er.async_get(hass).async_get_or_create(
+        "sensor", "p1", "power", config_entry=target
+    )
+    hass.states.async_set(reg_entry.entity_id, STATE_UNAVAILABLE)
+
+    doctor = await _setup_doctor(hass)
+    await doctor.runtime_data.async_refresh()  # second scan confirms
+    assert target.entry_id in doctor.runtime_data.data.confirmed
+
+    response = await hass.services.async_call(
+        DOMAIN, SERVICE_RELOAD_PROBLEMS, blocking=True, return_response=True
+    )
+    assert response == {"reloaded": ["P1 meter"], "failed": []}
+    setup_entry.assert_awaited_once()
+
+
+async def test_reload_problems_action_needs_doctor(hass: HomeAssistant) -> None:
+    """The action explains itself when Device Doctor is not set up."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, SERVICE_RELOAD_PROBLEMS, blocking=True)
 
 
 async def test_form_serializes_for_frontend(hass: HomeAssistant) -> None:

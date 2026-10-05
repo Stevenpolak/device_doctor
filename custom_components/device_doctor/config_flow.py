@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.config_entries import (
+    SOURCE_IGNORE,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -20,6 +21,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -31,6 +33,7 @@ from .const import (
     CONF_COUNT_UNKNOWN,
     CONF_HUB_DOMAINS,
     CONF_IGNORED_DEVICES,
+    CONF_IGNORED_ENTRIES,
     CONF_SCAN_INTERVAL,
     CONF_SKIP_DOMAINS,
     CONF_SKIP_ENTITY_DOMAINS,
@@ -116,6 +119,9 @@ def build_schema(hass: HomeAssistant, opts: dict[str, Any]) -> vol.Schema:
                 CONF_SKIP_DOMAINS, default=opts[CONF_SKIP_DOMAINS]
             ): _multi_select(installed | set(opts[CONF_SKIP_DOMAINS])),
             vol.Optional(
+                CONF_IGNORED_ENTRIES, default=opts[CONF_IGNORED_ENTRIES]
+            ): _entry_select(hass, opts[CONF_IGNORED_ENTRIES]),
+            vol.Optional(
                 CONF_IGNORED_DEVICES, default=opts[CONF_IGNORED_DEVICES]
             ): DeviceSelector(DeviceSelectorConfig(multiple=True)),
         }
@@ -149,6 +155,30 @@ def _number(minimum: int, maximum: int, unit: str | None = None) -> NumberSelect
     if unit:
         config["unit_of_measurement"] = unit
     return NumberSelector(config)
+
+
+def _entry_select(hass: HomeAssistant, ignored: list[str]) -> SelectSelector:
+    """Pick single config entries, labelled 'title (domain)'."""
+    labels = {
+        entry.entry_id: f"{entry.title or entry.domain} ({entry.domain})"
+        for entry in hass.config_entries.async_entries()
+        if entry.domain != DOMAIN and entry.source != SOURCE_IGNORE
+    }
+    # Keep ignored entries that were removed since, so they can be unticked.
+    labels.update(
+        {entry_id: entry_id for entry_id in ignored if entry_id not in labels}
+    )
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=[
+                SelectOptionDict(value=entry_id, label=label)
+                for entry_id, label in labels.items()
+            ],
+            multiple=True,
+            sort=True,
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
 
 
 def _multi_select(options: set[str]) -> SelectSelector:
