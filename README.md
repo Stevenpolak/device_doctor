@@ -36,19 +36,31 @@ revives a connection that died silently.
 Copy `custom_components/device_doctor` into your `config/custom_components`
 folder and restart.
 
+Requires Home Assistant 2026.3 or newer.
+
+> **Missing icon in HACS?** The icon ships inside the integration (`brand/`),
+> which Home Assistant shows since 2026.3. The HACS store still looks up icons
+> in a central database that no longer accepts custom integrations, so it shows
+> a placeholder. This is a known HACS issue
+> ([hacs/integration#5171](https://github.com/hacs/integration/issues/5171))
+> and will resolve itself once HACS is updated.
+
 ## Options
 
-*Settings → Devices & services → Device Doctor → Configure*
+The options are shown when you add the integration, and can be changed later
+under *Settings → Devices & services → Device Doctor → Configure*. The defaults
+work for most setups.
 
-| Option | Default | Meaning |
-|---|---|---|
-| Scan interval | 10 min | How often to scan |
-| Confirmations | 2 | Scans in a row before a repair is raised |
-| Unavailable threshold | 50 % | Flag when more than this share of entities is unavailable |
-| Ignored integrations | helpers, `group`, `mobile_app`, … | Never flagged |
-| Hub integrations | `zha`, `zwave_js`, `mqtt`, `matter`, `deconz`, `hue` | Judged per device instead of as a whole |
-| Ignored entity types | `button`, `event`, `scene`, `update`, … | Types that sit at `unknown` until used |
-| Count `unknown` | on | Some integrations report `unknown` when they lose connection |
+| Section | Option | Default | Meaning |
+|---|---|---|---|
+| Scanning | Scan interval | 10 min | How often to scan |
+| | Confirmations | 2 | Scans in a row before a repair is raised |
+| | Unavailable threshold | 50 % | Flag when more than this share of entities is unavailable |
+| Exclusions | Ignored integrations | helpers, `group`, `mobile_app`, … | Never flagged |
+| | Ignored devices | none | Devices allowed to be offline, such as a TV that is switched off |
+| Advanced | Hub integrations | `zha`, `zwave_js`, `mqtt`, `matter`, `deconz`, `hue` | Judged per device instead of as a whole |
+| | Ignored entity types | `button`, `event`, `scene`, `update`, … | Types that sit at `unknown` until used |
+| | Count `unknown` | on | Some integrations report `unknown` when they lose connection |
 
 Disabled and ignored integrations are always skipped.
 

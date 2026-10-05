@@ -24,6 +24,7 @@ from .const import (
     CONF_CONFIRMATIONS,
     CONF_COUNT_UNKNOWN,
     CONF_HUB_DOMAINS,
+    CONF_IGNORED_DEVICES,
     CONF_SCAN_INTERVAL,
     CONF_SKIP_DOMAINS,
     CONF_SKIP_ENTITY_DOMAINS,
@@ -143,6 +144,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         skip_domains = {*opts[CONF_SKIP_DOMAINS], DOMAIN}
         hub_domains = set(opts[CONF_HUB_DOMAINS])
         skip_entity_domains = set(opts[CONF_SKIP_ENTITY_DOMAINS])
+        ignored_devices = set(opts[CONF_IGNORED_DEVICES])
         threshold = float(opts[CONF_THRESHOLD]) / 100
 
         ent_reg = er.async_get(self.hass)
@@ -166,7 +168,11 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             if state.domain in skip_entity_domains:
                 continue
             reg_entry = ent_reg.async_get(state.entity_id)
-            if reg_entry is None or reg_entry.config_entry_id not in entries:
+            if (
+                reg_entry is None
+                or reg_entry.config_entry_id not in entries
+                or reg_entry.device_id in ignored_devices
+            ):
                 continue
             is_bad = state.state in bad_states
             counts = entry_counts[reg_entry.config_entry_id]

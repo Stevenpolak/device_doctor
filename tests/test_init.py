@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState, ConfigFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import config_validation as cv
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -16,11 +17,18 @@ from pytest_homeassistant_custom_component.common import (
     mock_integration,
     mock_platform,
 )
+import voluptuous_serialize
 
+from custom_components.device_doctor.config_flow import build_schema
 from custom_components.device_doctor.const import (
+    CONF_CONFIRMATIONS,
+    CONF_IGNORED_DEVICES,
     CONF_THRESHOLD,
     DEFAULT_OPTIONS,
     DOMAIN,
+    SECTION_ADVANCED,
+    SECTION_EXCLUSIONS,
+    SECTION_SCANNING,
 )
 from custom_components.device_doctor.repairs import async_create_fix_flow
 
@@ -42,8 +50,11 @@ async def test_setup_and_unload(hass: HomeAssistant) -> None:
     assert entry.state is ConfigEntryState.NOT_LOADED
 
 
+EMPTY_SECTIONS = {SECTION_SCANNING: {}, SECTION_EXCLUSIONS: {}, SECTION_ADVANCED: {}}
+
+
 async def test_config_and_options_flow(hass: HomeAssistant) -> None:
-    """The user step creates an entry; the options flow saves changes."""
+    """Setup shows the sectioned options; the options flow saves changes."""
     with (
         patch("custom_components.device_doctor.async_setup_entry", return_value=True),
         patch("custom_components.device_doctor.async_unload_entry", return_value=True),
@@ -52,8 +63,12 @@ async def test_config_and_options_flow(hass: HomeAssistant) -> None:
             DOMAIN, context={"source": SOURCE_USER}
         )
         assert result["type"] is FlowResultType.FORM
+        assert set(result["data_schema"].schema) == set(EMPTY_SECTIONS)
 
-        result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+        # Untouched sections fall back to the defaults.
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], EMPTY_SECTIONS
+        )
         assert result["type"] is FlowResultType.CREATE_ENTRY
         entry = result["result"]
         assert entry.options == DEFAULT_OPTIONS
@@ -61,10 +76,18 @@ async def test_config_and_options_flow(hass: HomeAssistant) -> None:
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result["type"] is FlowResultType.FORM
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {**DEFAULT_OPTIONS, CONF_THRESHOLD: 75}
+            result["flow_id"],
+            {
+                **EMPTY_SECTIONS,
+                SECTION_SCANNING: {CONF_THRESHOLD: 75},
+                SECTION_EXCLUSIONS: {CONF_IGNORED_DEVICES: ["tv"]},
+            },
         )
         assert result["type"] is FlowResultType.CREATE_ENTRY
         assert entry.options[CONF_THRESHOLD] == 75
+        assert entry.options[CONF_IGNORED_DEVICES] == ["tv"]
+        # Options outside the edited sections keep their values.
+        assert entry.options[CONF_CONFIRMATIONS] == DEFAULT_OPTIONS[CONF_CONFIRMATIONS]
 
 
 def _issue_data(entry_id: str) -> dict[str, object]:
@@ -140,3 +163,16 @@ async def test_fix_flow_aborts_when_reload_fails(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reload_failed"
     setup_entry.assert_awaited_once()
+
+
+async def test_form_serializes_for_frontend(hass: HomeAssistant) -> None:
+    """The sectioned schema converts to the format the frontend renders."""
+    fields = voluptuous_serialize.convert(
+        build_schema(hass, DEFAULT_OPTIONS), custom_serializer=cv.custom_serializer
+    )
+    assert [(f["name"], f["type"]) for f in fields] == [
+        (SECTION_SCANNING, "expandable"),
+        (SECTION_EXCLUSIONS, "expandable"),
+        (SECTION_ADVANCED, "expandable"),
+    ]
+    assert fields[2]["expanded"] is False

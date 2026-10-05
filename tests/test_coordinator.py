@@ -15,7 +15,11 @@ from homeassistant.helpers import (
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.device_doctor.const import DEFAULT_OPTIONS, DOMAIN
+from custom_components.device_doctor.const import (
+    CONF_IGNORED_DEVICES,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+)
 from custom_components.device_doctor.coordinator import DeviceDoctorCoordinator
 
 
@@ -168,3 +172,23 @@ async def test_repair_issue_lifecycle(
     hass.states.async_set(next(iter(hass.states.async_entity_ids())), "1")
     await coordinator.async_refresh()
     assert issue_reg.async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_ignored_devices(
+    hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
+) -> None:
+    """Ignored devices are left out, for hubs and for regular integrations."""
+    add_integration(hass, "zha", [STATE_UNAVAILABLE, "1"], devices=2)
+    add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE], devices=1)
+    assert len(coordinator.scan()) == 2
+
+    dev_reg = dr.async_get(hass)
+    ignored = [
+        dev_reg.async_get_device(identifiers={(domain, "device_0")}).id
+        for domain in ("zha", "dlna_dmr")
+    ]
+    hass.config_entries.async_update_entry(
+        coordinator.config_entry,
+        options={**DEFAULT_OPTIONS, CONF_IGNORED_DEVICES: ignored},
+    )
+    assert coordinator.scan() == {}
