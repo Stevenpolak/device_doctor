@@ -1,9 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="custom_components/device_doctor/brand/dark_logo@2x.png" />
-    <img src="custom_components/device_doctor/brand/logo@2x.png" width="420" alt="Device Doctor" />
-  </picture>
+  <img src="https://raw.githubusercontent.com/Stevenpolak/device_doctor/main/custom_components/device_doctor/brand/icon@2x.png" width="120" alt="Device Doctor logo" />
 </p>
+
+<h1 align="center">Device Doctor</h1>
 
 <p align="center">Finds dead devices and silently failing integrations in Home Assistant.</p>
 
@@ -12,7 +11,7 @@ integration or device quietly stops working: the kind of failure you
 normally only notice days later, when a graph has gone flat or an automation
 didn't run.
 
-<img width="100%" alt="Two Device Doctor repairs in Home Assistant: an ESPHome integration that is not working and a Zigbee remote that is unavailable" src="docs/repairs.png" />
+<img width="100%" alt="Two Device Doctor repairs in Home Assistant: an ESPHome integration that is not working and a Zigbee remote that is unavailable" src="https://raw.githubusercontent.com/Stevenpolak/device_doctor/main/docs/repairs.png" />
 
 ## Why
 
