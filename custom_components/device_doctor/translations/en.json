@@ -259,7 +259,7 @@
     "ignored": {
       "entry_type": "Ignored",
       "initiate_flow": {
-        "user": "Ignore a device or integration"
+        "user": "Ignore"
       },
       "step": {
         "user": {
@@ -309,7 +309,7 @@
     "allowed_offline": {
       "entry_type": "Allowed offline",
       "initiate_flow": {
-        "user": "Allow a device or integration offline"
+        "user": "Allow offline"
       },
       "step": {
         "user": {

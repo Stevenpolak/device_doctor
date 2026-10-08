@@ -70,9 +70,9 @@ says so and suggests *Allow offline* first.
 example *Leak sensor (Hallway)* or *Growatt inverter (growatt_server) · 1 day*.
 Each rule's cog lets you change it: how long it may be offline, switch
 between *Ignored* and *Allowed offline*, or remove the rule so it's checked
-normally again. Use **Ignore a device or integration** / **Allow a device or
-integration offline** to add one without waiting for a repair. The list is
-sorted alphabetically by name.
+normally again. Use the **+ Ignore** and **+ Allow offline** buttons at the
+top to add one without waiting for a repair. The list is sorted alphabetically
+by name.
 
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:
