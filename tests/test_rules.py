@@ -10,7 +10,6 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -33,7 +32,7 @@ from custom_components.device_doctor.coordinator import DeviceDoctorCoordinator
 from custom_components.device_doctor.repairs import async_create_fix_flow
 from custom_components.device_doctor.rules import async_get_rules, async_set_rule
 
-from .test_coordinator import add_integration
+from .test_coordinator import add_integration, device_id_of, entity_id_of
 
 HOUR = timedelta(hours=1)
 
@@ -140,17 +139,17 @@ async def test_device_rule_beats_entry_rule(
 ) -> None:
     """A device's own rule applies before its hub's rule."""
     zha = add_integration(hass, "zha", ["1", "1", "1", "1"], devices=2)
-    device = dr.async_get(hass).async_get_device(identifiers={("zha", "device_0")})
+    device_id = device_id_of(hass, "zha")
     await coordinator.async_refresh()
     async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, zha.entry_id, "30d")
-    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device.id, "1d")
+    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, "1d")
 
-    for entity_id in ("sensor.zha_zha_0", "sensor.zha_zha_2"):  # device_0
-        hass.states.async_set(entity_id, STATE_UNAVAILABLE)
+    for index in (0, 2):  # the sensors of device_0
+        hass.states.async_set(entity_id_of(hass, "zha", index), STATE_UNAVAILABLE)
     freezer.tick(timedelta(days=2))
     await coordinator.async_refresh()
     await coordinator.async_refresh()
-    assert device.id in coordinator.data.confirmed
+    assert device_id in coordinator.data.confirmed
 
 
 async def test_events_carry_offline_time(

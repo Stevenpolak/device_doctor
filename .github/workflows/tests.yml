@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  pytest:
+    name: Tests (HA ${{ matrix.name }})
+    runs-on: ubuntu-latest
+    # The beta run warns early about upcoming Home Assistant changes, but
+    # doesn't block a release.
+    continue-on-error: ${{ matrix.name == 'beta' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: minimum  # oldest version in hacs.json
+            harness: pytest-homeassistant-custom-component==0.13.320
+          - name: stable
+            harness: -r requirements_test.txt
+          - name: beta
+            harness: pytest-homeassistant-custom-component
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install ${{ matrix.harness }}
+      - run: python -c "import homeassistant.const as c; print('Home Assistant', c.__version__)"
+      - run: pytest

@@ -1,3 +1,5 @@
+# HACS validation, as recommended in https://hacs.xyz/docs/publish/action
+# Required for the HACS default store; must pass without any ignored checks.
 name: Validate
 
 on:
@@ -7,29 +9,13 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
-  hacs:
-    name: HACS
+  validate-hacs:
+    name: HACS validation
     runs-on: ubuntu-latest
     steps:
       - uses: hacs/action@main
         with:
           category: integration
-
-  hassfest:
-    name: Hassfest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: home-assistant/actions/hassfest@master
-
-  tests:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - run: pip install -r requirements_test.txt
-      - run: pytest

@@ -1,0 +1,32 @@
+# Catches a release whose tag doesn't match manifest.json, or a beta that
+# isn't marked as pre-release (HACS would offer it to everyone).
+name: Release check
+
+on:
+  release:
+    types: [published, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Tag matches manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare tag, manifest version and pre-release flag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          version=$(jq -r .version custom_components/device_doctor/manifest.json)
+          echo "tag=$TAG manifest=$version prerelease=$PRERELEASE"
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "::error::Tag $TAG does not match manifest version $version"
+            exit 1
+          fi
+          if [[ "$version" =~ (a|b|rc)[0-9]+$ ]] && [ "$PRERELEASE" != "true" ]; then
+            echo "::error::$version is a beta but the release is not marked as pre-release"
+            exit 1
+          fi

@@ -76,6 +76,16 @@ def add_integration(
     return entry
 
 
+def entity_id_of(hass: HomeAssistant, domain: str, index: int) -> str:
+    """Return the entity id of a test integration's sensor number ``index``."""
+    return er.async_get(hass).async_get_entity_id("sensor", domain, f"{domain}_{index}")
+
+
+def device_id_of(hass: HomeAssistant, domain: str) -> str:
+    """Return the id of a test integration's first device, via its first entity."""
+    return er.async_get(hass).async_get(entity_id_of(hass, domain, 0)).device_id
+
+
 async def test_entry_confirmed_after_two_scans(
     hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
 ) -> None:
@@ -190,11 +200,7 @@ async def test_ignored_devices(
     add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE], devices=1)
     assert len(coordinator.scan().problems) == 2
 
-    dev_reg = dr.async_get(hass)
-    ignored = [
-        dev_reg.async_get_device(identifiers={(domain, "device_0")}).id
-        for domain in ("zha", "dlna_dmr")
-    ]
+    ignored = [device_id_of(hass, domain) for domain in ("zha", "dlna_dmr")]
     for device_id in ignored:
         async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, ALWAYS)
     assert coordinator.scan().problems == {}
@@ -242,9 +248,9 @@ async def test_skipped_entities_per_exclusion(
     add_integration(hass, "group", ["on", "off"])  # ignored integration type
     tv = add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE])
     add_integration(hass, "zha", ["1", "2", "3"], devices=3)
-    sensor = dr.async_get(hass).async_get_device(identifiers={("zha", "device_0")})
+    sensor_id = device_id_of(hass, "zha")
     async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, ALWAYS)
-    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor.id, ALWAYS)
+    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor_id, ALWAYS)
 
     assert coordinator.scan().skipped == {
         "ignored_integrations": 2,

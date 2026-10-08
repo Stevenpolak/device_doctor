@@ -50,6 +50,11 @@ Requirements (already met are ticked):
 - [x] `hacs.json` with a name; `manifest.json` with all required keys
 - [x] Brand icon inside the integration (`brand/icon.png`)
 - [x] HACS action and Hassfest pass without errors or ignores
+- [x] Separate workflows per check (`validate.yml` = HACS, `hassfest.yml`),
+      so the PR can link to each run; least-privilege permissions
+- [x] Tests on the minimum supported, the latest stable and the beta Home
+      Assistant; lint; release check (tag = manifest version, betas marked as
+      pre-release); Dependabot for actions and the test harness
 - [x] At least one GitHub release, created after the checks passed
 
 Fixes and checks before submitting:

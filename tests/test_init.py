@@ -12,6 +12,11 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.setup import async_setup_component
+
+try:  # Home Assistant 2026.10 replaced voluptuous-serialize with probatio
+    from probatio import to_field_list as serialize_schema
+except ImportError:
+    from voluptuous_serialize import convert as serialize_schema
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -20,7 +25,6 @@ from pytest_homeassistant_custom_component.common import (
     mock_integration,
     mock_platform,
 )
-import voluptuous_serialize
 
 from custom_components.device_doctor.config_flow import build_schema
 from custom_components.device_doctor.const import (
@@ -281,7 +285,7 @@ async def test_reload_problems_action_needs_doctor(hass: HomeAssistant) -> None:
 
 async def test_form_serializes_for_frontend(hass: HomeAssistant) -> None:
     """The sectioned schema converts to the format the frontend renders."""
-    fields = voluptuous_serialize.convert(
+    fields = serialize_schema(
         build_schema(hass, DEFAULT_OPTIONS), custom_serializer=cv.custom_serializer
     )
     assert [(f["name"], f["type"]) for f in fields] == [

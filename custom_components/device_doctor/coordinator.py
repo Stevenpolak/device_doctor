@@ -375,7 +375,12 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             problems=problems,
             skipped=skipped,
             healthy=healthy,
-            known=set(all_entries) | set(dev_reg.devices),
+            known=set(all_entries)
+            | {
+                device.id
+                for entry_id in all_entries
+                for device in dr.async_entries_for_config_entry(dev_reg, entry_id)
+            },
         )
 
     @callback
