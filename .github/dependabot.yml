@@ -8,3 +8,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Its versions track Home Assistant betas too. The stable pin in
+      # requirements_test.txt is bumped by hand after a Home Assistant
+      # release; the "beta" test job already covers upcoming versions.
+      - dependency-name: pytest-homeassistant-custom-component
