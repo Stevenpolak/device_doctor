@@ -6,10 +6,15 @@ from homeassistant.config_entries import ConfigEntryState
 
 DOMAIN = "device_doctor"
 
+# What a problem or rule is about.
+KIND_ENTRY = "entry"
+KIND_DEVICE = "device"
+
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_CONFIRMATIONS = "confirmations"
 CONF_THRESHOLD = "threshold"
 CONF_SKIP_DOMAINS = "skip_domains"
+# Options from 0.4 and earlier, migrated into "always" rules.
 CONF_IGNORED_DEVICES = "ignored_devices"
 CONF_IGNORED_ENTRIES = "ignored_entries"
 CONF_HUB_DOMAINS = "hub_domains"
@@ -36,9 +41,6 @@ DEFAULT_OPTIONS: dict[str, object] = {
         "trend",
         "utility_meter",
     ],
-    # Single config entries and devices that are allowed to be offline.
-    CONF_IGNORED_ENTRIES: [],
-    CONF_IGNORED_DEVICES: [],
     # Integrations with one config entry for many devices: judged per device.
     CONF_HUB_DOMAINS: ["deconz", "hue", "matter", "mqtt", "zha", "zwave_js"],
     # Entity domains that sit at "unknown" until first used.
@@ -61,7 +63,7 @@ SECTION_EXCLUSIONS = "exclusions"
 SECTION_ADVANCED = "advanced"
 SECTIONS: dict[str, tuple[str, ...]] = {
     SECTION_SCANNING: (CONF_SCAN_INTERVAL, CONF_CONFIRMATIONS, CONF_THRESHOLD),
-    SECTION_EXCLUSIONS: (CONF_SKIP_DOMAINS, CONF_IGNORED_ENTRIES, CONF_IGNORED_DEVICES),
+    SECTION_EXCLUSIONS: (CONF_SKIP_DOMAINS,),
     SECTION_ADVANCED: (
         CONF_HUB_DOMAINS,
         CONF_SKIP_ENTITY_DOMAINS,
@@ -76,3 +78,23 @@ EVENT_RECOVERED = f"{DOMAIN}_recovered"
 
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
+
+# Allowed-offline rules, stored as config subentries of the Device Doctor entry.
+SUBENTRY_ALLOWED_OFFLINE = "allowed_offline"
+RULE_TARGET_KIND = "target_kind"  # KIND_ENTRY or KIND_DEVICE
+RULE_TARGET_ID = "target_id"
+RULE_ALLOWED_OFFLINE = "allowed_offline"
+ALWAYS = "always"
+# Duration options in seconds; ALWAYS means never raise a problem (ignore).
+ALLOWED_OFFLINE_SECONDS: dict[str, int | None] = {
+    "1d": 86400,
+    "3d": 3 * 86400,
+    "7d": 7 * 86400,
+    "30d": 30 * 86400,
+    ALWAYS: None,
+}
+
+# Something that came back this often in a week is probably switched off on
+# purpose, so the repair suggests "allow offline" first.
+RETURNS_HINT = 2
+RETURNS_WINDOW = 7 * 86400

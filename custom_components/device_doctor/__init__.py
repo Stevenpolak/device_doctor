@@ -7,8 +7,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .const import (
+    ALWAYS,
+    CONF_IGNORED_DEVICES,
+    CONF_IGNORED_ENTRIES,
+    DOMAIN,
+    KIND_DEVICE,
+    KIND_ENTRY,
+)
 from .coordinator import DeviceDoctorConfigEntry, DeviceDoctorCoordinator
+from .rules import async_set_rule
 from .services import async_setup_services
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
@@ -18,6 +26,22 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the actions once, independent of the config entry."""
     async_setup_services(hass)
+    return True
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: DeviceDoctorConfigEntry
+) -> bool:
+    """Move 0.4's ignored entries and devices into "always" rules."""
+    if entry.version == 1 and entry.minor_version < 2:
+        options = dict(entry.options)
+        for kind, key in (
+            (KIND_ENTRY, CONF_IGNORED_ENTRIES),
+            (KIND_DEVICE, CONF_IGNORED_DEVICES),
+        ):
+            for target_id in options.pop(key, []):
+                async_set_rule(hass, entry, kind, target_id, ALWAYS)
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
     return True
 
 

@@ -21,16 +21,12 @@
           },
           "exclusions": {
             "name": "Exclusions",
-            "description": "Things that are allowed to be offline.",
+            "description": "Integration types that are never checked. To let a single integration or device be offline, use a repair's menu or add an allowed offline rule on the Device Doctor page.",
             "data": {
-              "skip_domains": "Ignored integrations",
-              "ignored_entries": "Ignored integration entries",
-              "ignored_devices": "Ignored devices"
+              "skip_domains": "Ignored integration types"
             },
             "data_description": {
-              "skip_domains": "Integration types that are never flagged, such as helpers that only mirror other entities.",
-              "ignored_entries": "Single integration entries that may be offline, without ignoring the whole integration type. Also set by 'Ignore' on a repair.",
-              "ignored_devices": "Devices that may be offline, such as a TV that is switched off. Also set by 'Ignore' on a repair."
+              "skip_domains": "Such as helpers that only mirror other entities."
             }
           },
           "advanced": {
@@ -75,16 +71,12 @@
           },
           "exclusions": {
             "name": "Exclusions",
-            "description": "Things that are allowed to be offline.",
+            "description": "Integration types that are never checked. To let a single integration or device be offline, use a repair's menu or add an allowed offline rule on the Device Doctor page.",
             "data": {
-              "skip_domains": "Ignored integrations",
-              "ignored_entries": "Ignored integration entries",
-              "ignored_devices": "Ignored devices"
+              "skip_domains": "Ignored integration types"
             },
             "data_description": {
-              "skip_domains": "Integration types that are never flagged, such as helpers that only mirror other entities.",
-              "ignored_entries": "Single integration entries that may be offline, without ignoring the whole integration type. Also set by 'Ignore' on a repair.",
-              "ignored_devices": "Devices that may be offline, such as a TV that is switched off. Also set by 'Ignore' on a repair."
+              "skip_domains": "Such as helpers that only mirror other entities."
             }
           },
           "advanced": {
@@ -117,10 +109,10 @@
         "name": "Skipped entities",
         "state_attributes": {
           "ignored_integrations": {
-            "name": "Ignored integrations"
+            "name": "Ignored integration types"
           },
           "ignored_entries": {
-            "name": "Ignored integration entries"
+            "name": "Ignored integrations"
           },
           "ignored_devices": {
             "name": "Ignored devices"
@@ -145,11 +137,19 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "{title} failed to start",
-            "description": "{title} {state, select, setup_retry {keeps trying to start, but fails every time} migration_error {could not update its stored settings} failed_unload {could not be stopped cleanly} other {failed to start}}.{has_reason, select, yes {\n\nLast error: {reason}} other {}}\n\nReloading sometimes fixes this, for example after a network problem. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "title": "{title} ({domain}) failed to start",
+            "description": "{title} {state, select, setup_retry {keeps trying to start, but fails every time} migration_error {could not update its stored settings} failed_unload {could not be stopped cleanly} other {failed to start}}, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now.{has_reason, select, yes {\n\nLast error: {reason}} other {}}\n\n**Reload** sometimes fixes this, for example after a network problem.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
             "menu_options": {
               "reload": "Reload integration",
-              "ignore": "Ignore this integration"
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
             }
           }
         },
@@ -165,11 +165,19 @@
       "fix_flow": {
         "step": {
           "init": {
-            "title": "{title} is not working",
-            "description": "{title} is running, but {bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable.\n\nReloading often restores a connection that silently died. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "title": "{title} ({domain}) is not working",
+            "description": "{title} is running, but {bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now.\n\n**Reload** often restores a connection that silently died.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
             "menu_options": {
               "reload": "Reload integration",
-              "ignore": "Ignore this integration"
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
             }
           }
         },
@@ -186,9 +194,17 @@
         "step": {
           "init": {
             "title": "{title} is unavailable",
-            "description": "{bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable on this {domain} device. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\nIf it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "description": "{bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable on this {domain} device, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the device page]({link})",
             "menu_options": {
-              "ignore": "Ignore this device"
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
             }
           }
         },
@@ -209,6 +225,69 @@
   "exceptions": {
     "not_loaded": {
       "message": "Device Doctor is not running."
+    }
+  },
+  "config_subentries": {
+    "allowed_offline": {
+      "entry_type": "Allowed offline rule",
+      "initiate_flow": {
+        "user": "Add allowed offline rule"
+      },
+      "step": {
+        "user": {
+          "title": "What may be offline?",
+          "description": "For things that are switched off now and then, such as a TV, a soldering iron or a solar inverter at night.",
+          "menu_options": {
+            "device": "A device on a hub (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "An integration"
+          }
+        },
+        "device": {
+          "title": "Allow a device to be offline",
+          "data": {
+            "device": "Device",
+            "allowed_offline": "May be offline for"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+          }
+        },
+        "entry": {
+          "title": "Allow an integration to be offline",
+          "data": {
+            "entry": "Integration",
+            "allowed_offline": "May be offline for"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+          }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "How long may {title} be offline before Device Doctor reports it?",
+          "data": {
+            "allowed_offline": "May be offline for"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "There is already a rule for this. Change it on the Device Doctor page.",
+        "reconfigure_successful": "The rule was updated."
+      }
+    }
+  },
+  "selector": {
+    "allowed_offline": {
+      "options": {
+        "1d": "1 day",
+        "3d": "3 days",
+        "7d": "1 week",
+        "30d": "30 days",
+        "always": "Always (ignore)"
+      }
     }
   }
 }

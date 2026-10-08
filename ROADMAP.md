@@ -11,27 +11,27 @@ for Device Doctor in HACS), then as `v0.5.0`.
 **Allowed offline**: for devices that are legitimately off now and then
 (soldering iron, a TV remote when the TV is off, solar inverters at night).
 
-- [ ] Track "last seen working" per integration and device, kept across
-      restarts; forget ids not seen for 30 days
-- [ ] Count how often something came back in the past 7 days
-- [ ] Rules "allowed offline for 1 day / 3 days / 1 week / 30 days", stored as
+- [x] Track "last seen working" per integration and device, kept across
+      restarts; forget integrations and devices once they are deleted
+- [x] Count how often something came back in the past 7 days
+- [x] Rules "allowed offline for 1 day / 3 days / 1 week / 30 days", stored as
       rules on the Device Doctor page (config subentries), editable and
       removable there
-- [ ] A device rule wins over a rule for its integration
-- [ ] Repair menu: Reload (integrations only) · Allow offline · Ignore;
+- [x] A device rule wins over a rule for its integration
+- [x] Repair menu: Reload (integrations only) · Allow offline · Ignore;
       *Allow offline* first when it came back at least twice this week
-- [ ] Repair text shows how long it has been offline, and a link to the
+- [x] Repair text shows how long it has been offline, and a link to the
       device or integration page
-- [ ] Events `device_doctor_problem` / `device_doctor_recovered` get
+- [x] Events `device_doctor_problem` / `device_doctor_recovered` get
       `offline_for` (seconds) and `last_ok`; on recovery `offline_for` is the
       length of the outage
-- [ ] README: allowed offline, new event fields, examples "notify only after
+- [x] README: allowed offline, new event fields, examples "notify only after
       a day" and "X is back after …"
-- [ ] Tests for all of the above, including time travel
+- [x] Tests for all of the above, including time travel
 
-**Decision needed**
-- [ ] Merge *Ignore* into the rules as duration "Always" (one list, existing
-      ignored entries and devices migrated), or keep both side by side
+**Decided**
+- [x] *Ignore* is merged into the rules as duration "Always" (one list);
+      ignored entries and devices from 0.4 are migrated automatically
 
 **Verify on a real install**
 - [ ] Plural texts render ("1 of 1 entity" / "32 of 32 entities"); if not,

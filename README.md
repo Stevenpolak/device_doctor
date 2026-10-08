@@ -54,9 +54,21 @@ Click it and choose:
 - **Reload integration**: restarts that one integration. This often brings back
   a connection that silently died. (Only offered for integrations; reloading
   your whole Zigbee network won't revive one sensor.)
-- **Ignore**: for things that are allowed to be offline, like a TV that is
-  switched off or a seasonal device. Device Doctor stops checking that one
-  integration or device.
+- **Allow offline for a while**: for things that are switched off now and then,
+  like a TV, a soldering iron or solar inverters at night. Pick 1 day, 3 days,
+  1 week or 30 days. Device Doctor stays quiet while it's off for less than
+  that, and still tells you when it doesn't come back.
+- **Ignore**: for things that may be offline for good. Device Doctor stops
+  checking that one integration or device.
+
+The repair also tells you how long it has been offline and links to the device
+or integration page. If something keeps coming back on its own, the repair
+says so and suggests *Allow offline* first.
+
+**Your rules** (both *Allow offline* and *Ignore*) are listed on the Device
+Doctor page under **Settings → Devices & services → Device Doctor**. Click one
+to change how long it may be offline, delete it to undo, or use **Add allowed
+offline rule** to add one without waiting for a repair.
 
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:
@@ -64,9 +76,8 @@ Doctor → Configure**. The settings are grouped in three sections:
 - **Scanning**: how often to scan (10 minutes), how many scans in a row before
   a repair is raised (2), and what share of a device's sensors must be
   unavailable (more than 50 %)
-- **Exclusions**: integrations, single integration entries and devices that are
-  never checked. Everything you ignored from a repair ends up here, so this is
-  also where you undo it.
+- **Exclusions**: integration types that are never checked, such as helpers
+  that only mirror other sensors
 - **Advanced**: which integrations are checked per device, which entity types
   are skipped, and whether `unknown` counts as unavailable. You rarely need
   these.
@@ -121,6 +132,39 @@ automation:
 The event fires when a problem is first found, not on every scan, so this
 reloads once per outage instead of over and over.
 
+**Only notify when it has been down for more than a day:**
+
+```yaml
+automation:
+  - alias: "Device Doctor: down for a day"
+    triggers:
+      - trigger: event
+        event_type: device_doctor_problem
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.event.data.offline_for > 86400 }}"
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          message: "{{ trigger.event.data.title }} has been offline for over a day"
+```
+
+**Tell me when it's back:**
+
+```yaml
+automation:
+  - alias: "Device Doctor: back again"
+    triggers:
+      - trigger: event
+        event_type: device_doctor_recovered
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          message: >
+            {{ trigger.event.data.title }} is back after
+            {{ (trigger.event.data.offline_for / 3600) | round(1) }} hours
+```
+
 There's also an action, **`device_doctor.reload_problems`**, that reloads every
 integration Device Doctor currently reports as broken. Put it behind a
 dashboard button for a one-tap "fix what you can".
@@ -139,6 +183,17 @@ Both events carry:
 | `detail` | `loaded` / `setup_retry` / `Hallway` | Integration state, or the device's area (empty if it has none) |
 | `bad`, `total` | `32`, `32` | Unavailable sensors out of all checked sensors |
 | `reason` | `Timeout connecting…` | Last error, if the integration reported one |
+| `offline_for` | `7200` | Seconds it has been offline. On `device_doctor_recovered`: how long the outage lasted |
+| `last_ok` | `2026-10-08T21:14:03+00:00` | When Device Doctor last saw it working, or `null` if never |
+| `since` | `2026-10-08T21:14:03+00:00` | Start of the outage: `last_ok`, or when it was first seen broken |
+| `returns_7d` | `3` | How often it came back by itself in the past week |
+| `link` | `/config/devices/device/…` | Its page in Home Assistant |
+
+`device_doctor_recovered` only fires when something actually works again, not
+when you ignore it or allow it to be offline.
+
+Home Assistant can't see devices while it's switched off itself, so
+`offline_for` includes any time Home Assistant was down.
 
 </details>
 
@@ -146,7 +201,7 @@ Both events carry:
 
 **Why is a device flagged that is simply switched off?**
 Device Doctor can't know it's allowed to be off. Click its repair and choose
-**Ignore**.
+**Allow offline for a while**, or **Ignore** if it may stay off for good.
 
 **Why isn't my device flagged even though some sensors are unavailable?**
 A device is only flagged when more than half of its checked sensors are

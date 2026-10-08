@@ -24,9 +24,9 @@ import voluptuous_serialize
 
 from custom_components.device_doctor.config_flow import build_schema
 from custom_components.device_doctor.const import (
+    ALWAYS,
     CONF_CONFIRMATIONS,
-    CONF_IGNORED_DEVICES,
-    CONF_IGNORED_ENTRIES,
+    CONF_SKIP_DOMAINS,
     CONF_THRESHOLD,
     DEFAULT_OPTIONS,
     DOMAIN,
@@ -88,12 +88,12 @@ async def test_config_and_options_flow(hass: HomeAssistant) -> None:
             {
                 **EMPTY_SECTIONS,
                 SECTION_SCANNING: {CONF_THRESHOLD: 75},
-                SECTION_EXCLUSIONS: {CONF_IGNORED_DEVICES: ["tv"]},
+                SECTION_EXCLUSIONS: {CONF_SKIP_DOMAINS: ["group"]},
             },
         )
         assert result["type"] is FlowResultType.CREATE_ENTRY
         assert entry.options[CONF_THRESHOLD] == 75
-        assert entry.options[CONF_IGNORED_DEVICES] == ["tv"]
+        assert entry.options[CONF_SKIP_DOMAINS] == ["group"]
         # Options outside the edited sections keep their values.
         assert entry.options[CONF_CONFIRMATIONS] == DEFAULT_OPTIONS[CONF_CONFIRMATIONS]
 
@@ -146,6 +146,13 @@ def _mock_p1(
     return target, setup_entry
 
 
+def _rules(doctor: MockConfigEntry) -> dict[tuple[str, str], str]:
+    return {
+        (sub.data["target_kind"], sub.data["target_id"]): sub.data["allowed_offline"]
+        for sub in doctor.subentries.values()
+    }
+
+
 async def _setup_doctor(hass: HomeAssistant) -> MockConfigEntry:
     doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
     doctor.add_to_hass(hass)
@@ -162,7 +169,7 @@ async def test_fix_flow_reloads_entry(hass: HomeAssistant) -> None:
     flow = await _start_fix_flow(
         hass,
         _issue_data("entry", target.entry_id, target.entry_id),
-        ["reload", "ignore"],
+        ["reload", "allow_offline", "ignore"],
     )
     result = await flow.async_step_reload()
 
@@ -174,7 +181,9 @@ async def test_fix_flow_reloads_entry(hass: HomeAssistant) -> None:
 async def test_fix_flow_aborts_for_missing_entry(hass: HomeAssistant) -> None:
     """A repair for an integration that was removed aborts cleanly."""
     flow = await _start_fix_flow(
-        hass, _issue_data("entry", "gone", "gone"), ["reload", "ignore"]
+        hass,
+        _issue_data("entry", "gone", "gone"),
+        ["reload", "allow_offline", "ignore"],
     )
     result = await flow.async_step_reload()
     assert result["type"] is FlowResultType.ABORT
@@ -189,7 +198,7 @@ async def test_fix_flow_aborts_when_reload_fails(hass: HomeAssistant) -> None:
     flow = await _start_fix_flow(
         hass,
         _issue_data("entry", target.entry_id, target.entry_id),
-        ["reload", "ignore"],
+        ["reload", "allow_offline", "ignore"],
     )
     result = await flow.async_step_reload()
     assert result["type"] is FlowResultType.ABORT
@@ -202,14 +211,15 @@ async def test_fix_flow_ignores_entry(hass: HomeAssistant) -> None:
     doctor = await _setup_doctor(hass)
 
     flow = await _start_fix_flow(
-        hass, _issue_data("entry", "p1_entry", "p1_entry"), ["reload", "ignore"]
+        hass,
+        _issue_data("entry", "p1_entry", "p1_entry"),
+        ["reload", "allow_offline", "ignore"],
     )
     result = await flow.async_step_ignore()
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert doctor.options[CONF_IGNORED_ENTRIES] == ["p1_entry"]
-    assert doctor.options[CONF_IGNORED_DEVICES] == []
+    assert _rules(doctor) == {("entry", "p1_entry"): ALWAYS}
     # The options change reloaded Device Doctor.
     assert doctor.state is ConfigEntryState.LOADED
 
@@ -219,20 +229,23 @@ async def test_fix_flow_ignores_device(hass: HomeAssistant) -> None:
     doctor = await _setup_doctor(hass)
 
     flow = await _start_fix_flow(
-        hass, _issue_data("device", "leak_sensor", "zha_entry"), ["ignore"]
+        hass,
+        _issue_data("device", "leak_sensor", "zha_entry"),
+        ["allow_offline", "ignore"],
     )
     result = await flow.async_step_ignore()
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert doctor.options[CONF_IGNORED_DEVICES] == ["leak_sensor"]
-    assert doctor.options[CONF_IGNORED_ENTRIES] == []
+    assert _rules(doctor) == {("device", "leak_sensor"): ALWAYS}
 
 
 async def test_fix_flow_ignore_needs_doctor(hass: HomeAssistant) -> None:
     """Ignoring aborts when Device Doctor itself is not running."""
     flow = await _start_fix_flow(
-        hass, _issue_data("device", "leak_sensor", "zha_entry"), ["ignore"]
+        hass,
+        _issue_data("device", "leak_sensor", "zha_entry"),
+        ["allow_offline", "ignore"],
     )
     result = await flow.async_step_ignore()
     assert result["type"] is FlowResultType.ABORT

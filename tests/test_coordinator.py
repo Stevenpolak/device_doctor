@@ -19,13 +19,15 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.device_doctor.const import (
-    CONF_IGNORED_DEVICES,
-    CONF_IGNORED_ENTRIES,
+    ALWAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PROBLEM,
+    KIND_DEVICE,
+    KIND_ENTRY,
 )
 from custom_components.device_doctor.coordinator import DeviceDoctorCoordinator
+from custom_components.device_doctor.rules import async_set_rule
 
 
 @pytest.fixture
@@ -183,7 +185,7 @@ async def test_repair_issue_lifecycle(
 async def test_ignored_devices(
     hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
 ) -> None:
-    """Ignored devices are left out, for hubs and for regular integrations."""
+    """Ignored devices ("always" rules) are left out, hubs and regular ones."""
     add_integration(hass, "zha", [STATE_UNAVAILABLE, "1"], devices=2)
     add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE], devices=1)
     assert len(coordinator.scan().problems) == 2
@@ -193,10 +195,8 @@ async def test_ignored_devices(
         dev_reg.async_get_device(identifiers={(domain, "device_0")}).id
         for domain in ("zha", "dlna_dmr")
     ]
-    hass.config_entries.async_update_entry(
-        coordinator.config_entry,
-        options={**DEFAULT_OPTIONS, CONF_IGNORED_DEVICES: ignored},
-    )
+    for device_id in ignored:
+        async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, ALWAYS)
     assert coordinator.scan().problems == {}
 
 
@@ -243,14 +243,8 @@ async def test_skipped_entities_per_exclusion(
     tv = add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE])
     add_integration(hass, "zha", ["1", "2", "3"], devices=3)
     sensor = dr.async_get(hass).async_get_device(identifiers={("zha", "device_0")})
-    hass.config_entries.async_update_entry(
-        coordinator.config_entry,
-        options={
-            **DEFAULT_OPTIONS,
-            CONF_IGNORED_ENTRIES: [tv.entry_id],
-            CONF_IGNORED_DEVICES: [sensor.id],
-        },
-    )
+    async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, ALWAYS)
+    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor.id, ALWAYS)
 
     assert coordinator.scan().skipped == {
         "ignored_integrations": 2,

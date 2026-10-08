@@ -1,4 +1,4 @@
-"""Repair fix flow: reload the failing integration, or ignore the problem."""
+"""Repair fix flow: reload, allow offline for a while, or ignore."""
 
 from __future__ import annotations
 
@@ -6,17 +6,41 @@ from typing import Any
 
 from homeassistant import data_entry_flow
 from homeassistant.components.repairs import RepairsFlow
-from homeassistant.config_entries import ConfigEntryState, OperationNotAllowed
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigEntryState,
+    OperationNotAllowed,
+)
 from homeassistant.core import HomeAssistant
+import voluptuous as vol
 
-from .const import CONF_IGNORED_DEVICES, CONF_IGNORED_ENTRIES, DEFAULT_OPTIONS, DOMAIN
-from .coordinator import KIND_ENTRY
+from .const import (
+    ALWAYS,
+    DOMAIN,
+    KIND_ENTRY,
+    RETURNS_HINT,
+    RULE_ALLOWED_OFFLINE,
+)
+from .rules import async_set_rule
+from .selectors import allowed_offline_selector
 
-PLACEHOLDERS = ("title", "domain", "state", "bad", "total", "has_reason", "reason")
+PLACEHOLDERS = (
+    "title",
+    "domain",
+    "state",
+    "bad",
+    "total",
+    "has_reason",
+    "reason",
+    "offline_value",
+    "offline_unit",
+    "returns_7d",
+    "link",
+)
 
 
 class DeviceDoctorRepairFlow(RepairsFlow):
-    """Offer to reload the integration behind a problem, or to ignore it."""
+    """Offer to reload, allow offline for a while, or ignore."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         """Initialise the flow."""
@@ -30,11 +54,15 @@ class DeviceDoctorRepairFlow(RepairsFlow):
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:
         """Let the user pick what to do."""
+        menu_options = ["allow_offline", "ignore"]
         if self._data["kind"] == KIND_ENTRY:
-            menu_options = ["reload", "ignore"]
-        else:
-            # Reloading a whole hub won't revive one dead Zigbee sensor.
-            menu_options = ["ignore"]
+            # Reloading a whole hub won't revive one dead Zigbee sensor, so
+            # only integrations offer it.
+            if int(self._data.get("returns_7d", 0)) >= RETURNS_HINT:
+                # It keeps coming back: probably switched off on purpose.
+                menu_options = ["allow_offline", "reload", "ignore"]
+            else:
+                menu_options = ["reload", "allow_offline", "ignore"]
         return self.async_show_menu(
             step_id="init",
             menu_options=menu_options,
@@ -60,31 +88,53 @@ class DeviceDoctorRepairFlow(RepairsFlow):
         # if the reload didn't help.
         return self.async_create_entry(data={})
 
+    async def async_step_allow_offline(
+        self, user_input: dict[str, str] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Ask how long it may be offline, then save a rule."""
+        if user_input is not None:
+            return self._save_rule(user_input[RULE_ALLOWED_OFFLINE])
+        return self.async_show_form(
+            step_id="allow_offline",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(RULE_ALLOWED_OFFLINE, default="1d"): (
+                        allowed_offline_selector(include_always=False)
+                    )
+                }
+            ),
+            description_placeholders=self._placeholders,
+        )
+
     async def async_step_ignore(
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:
-        """Add the integration entry or device to Device Doctor's exclusions."""
-        doctor = next(
-            (
-                entry
-                for entry in self.hass.config_entries.async_entries(DOMAIN)
-                if entry.state is ConfigEntryState.LOADED
-            ),
-            None,
-        )
-        if doctor is None:
-            return self.async_abort(reason="not_loaded")
+        """Save an "always allowed offline" rule, i.e. stop checking it."""
+        return self._save_rule(ALWAYS)
 
-        key = (
-            CONF_IGNORED_ENTRIES
-            if self._data["kind"] == KIND_ENTRY
-            else CONF_IGNORED_DEVICES
+    def _save_rule(self, allowed: str) -> data_entry_flow.FlowResult:
+        if (doctor := _loaded_doctor(self.hass)) is None:
+            return self.async_abort(reason="not_loaded")
+        # Saving the rule reloads Device Doctor, which then applies it.
+        async_set_rule(
+            self.hass,
+            doctor,
+            str(self._data["kind"]),
+            str(self._data["id"]),
+            allowed,
         )
-        options = {**DEFAULT_OPTIONS, **doctor.options}
-        options[key] = sorted({*options[key], str(self._data["id"])})
-        # Changing the options reloads Device Doctor, which rescans without it.
-        self.hass.config_entries.async_update_entry(doctor, options=options)
         return self.async_create_entry(data={})
+
+
+def _loaded_doctor(hass: HomeAssistant) -> ConfigEntry | None:
+    return next(
+        (
+            entry
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            if entry.state is ConfigEntryState.LOADED
+        ),
+        None,
+    )
 
 
 async def async_create_fix_flow(
