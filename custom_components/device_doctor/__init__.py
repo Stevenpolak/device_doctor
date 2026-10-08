@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -40,7 +42,7 @@ async def async_migrate_entry(
             (KIND_DEVICE, CONF_IGNORED_DEVICES),
         ):
             for target_id in options.pop(key, []):
-                async_set_rule(hass, entry, kind, target_id, ALWAYS)
+                await async_set_rule(hass, entry, kind, target_id, ALWAYS)
         hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
     return True
 
@@ -53,6 +55,7 @@ async def async_setup_entry(
     await coordinator.async_load()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    coordinator.settings = _settings(entry)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -71,5 +74,17 @@ async def async_unload_entry(
 async def _async_update_listener(
     hass: HomeAssistant, entry: DeviceDoctorConfigEntry
 ) -> None:
-    """Reload when the options change."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Reload when the options or rules change, but not for a new rule title."""
+    if _settings(entry) != entry.runtime_data.settings:
+        await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _settings(entry: DeviceDoctorConfigEntry) -> tuple[Any, ...]:
+    """Return what Device Doctor's behaviour depends on: options and rule data."""
+    return (
+        sorted(entry.options.items(), key=str),
+        sorted(
+            (sub.subentry_id, sorted(sub.data.items()))
+            for sub in entry.subentries.values()
+        ),
+    )

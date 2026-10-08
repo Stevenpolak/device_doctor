@@ -10,6 +10,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -117,7 +118,7 @@ async def test_rule_holds_problem_until_time_is_up(
     """Within the allowed time nothing is raised; after it, a repair is."""
     tv = add_integration(hass, "androidtv_remote", ["on"])
     await coordinator.async_refresh()  # seen working
-    async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, "1d")
+    await async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, "1d")
 
     set_state(hass, tv, STATE_UNAVAILABLE)
     for _ in range(3):
@@ -141,8 +142,10 @@ async def test_device_rule_beats_entry_rule(
     zha = add_integration(hass, "zha", ["1", "1", "1", "1"], devices=2)
     device_id = device_id_of(hass, "zha")
     await coordinator.async_refresh()
-    async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, zha.entry_id, "30d")
-    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, "1d")
+    await async_set_rule(
+        hass, coordinator.config_entry, KIND_ENTRY, zha.entry_id, "30d"
+    )
+    await async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, "1d")
 
     for index in (0, 2):  # the sensors of device_0
         hass.states.async_set(entity_id_of(hass, "zha", index), STATE_UNAVAILABLE)
@@ -185,7 +188,9 @@ async def test_ignoring_is_not_a_recovery(
     p1 = add_integration(hass, "p1", [STATE_UNAVAILABLE])
     await coordinator.async_refresh()
     await coordinator.async_refresh()
-    async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, p1.entry_id, ALWAYS)
+    await async_set_rule(
+        hass, coordinator.config_entry, KIND_ENTRY, p1.entry_id, ALWAYS
+    )
     await coordinator.async_refresh()
     assert not coordinator.data.confirmed
     assert recovered == []
@@ -257,7 +262,7 @@ async def test_rule_flow_add_duplicate_and_change(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     (subentry,) = doctor.subentries.values()
-    assert subentry.title == "androidtv_remote (androidtv_remote)"
+    assert subentry.title == "androidtv_remote (androidtv_remote) · 1 day"
 
     result = await add()
     assert result["type"] is FlowResultType.ABORT
@@ -273,6 +278,7 @@ async def test_rule_flow_add_duplicate_and_change(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert result["reason"] == "reconfigure_successful"
     assert async_get_rules(doctor)[KIND_ENTRY, tv.entry_id].always
+    assert doctor.subentries[subentry.subentry_id].title.endswith("· Always (ignore)")
 
 
 async def test_migrates_0_4_ignore_lists(hass: HomeAssistant) -> None:
@@ -296,3 +302,33 @@ async def test_migrates_0_4_ignore_lists(hass: HomeAssistant) -> None:
     rules = async_get_rules(doctor)
     assert rules[KIND_ENTRY, "tv_entry"].always
     assert rules[KIND_DEVICE, "leak_sensor"].always
+
+
+async def test_device_rule_title_has_area_and_follows_renames(
+    hass: HomeAssistant,
+) -> None:
+    """Rule titles show the area, and follow renames without a reload."""
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    await hass.async_block_till_done()
+    add_integration(hass, "zha", ["1"], devices=1)
+    device_id = device_id_of(hass, "zha")
+    hallway = ar.async_get(hass).async_create("Hallway")
+    dev_reg = dr.async_get(hass)
+    dev_reg.async_update_device(device_id, area_id=hallway.id)
+
+    await async_set_rule(hass, doctor, KIND_DEVICE, device_id, "7d")
+    await hass.async_block_till_done()
+    (subentry,) = doctor.subentries.values()
+    assert subentry.title == "zha device 0 (Hallway) · 1 week"
+
+    coordinator = doctor.runtime_data
+    dev_reg.async_update_device(device_id, name_by_user="Leak sensor")
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert doctor.subentries[subentry.subentry_id].title == (
+        "Leak sensor (Hallway) · 1 week"
+    )
+    # A new title alone doesn't reload Device Doctor.
+    assert doctor.runtime_data is coordinator

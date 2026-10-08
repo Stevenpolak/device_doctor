@@ -40,7 +40,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .rules import Rule, async_get_rules
+from .rules import Rule, async_get_rules, async_refresh_rule_titles
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,6 +144,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         self.down_since: dict[str, str] = {}
         self.returns: dict[str, list[str]] = {}
         self._issue_ids: set[str] = set()
+        # Options and rule data at setup; a change to these needs a reload.
+        self.settings: tuple[Any, ...] = ()
 
     @property
     def options(self) -> dict[str, Any]:
@@ -195,6 +197,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         if not self.hass.is_running:
             # During startup integrations are still loading and look broken.
             return self.data or ScanResult(confirmed=dict(self._restored))
+
+        # Keep rule titles current after a device is renamed or moved.
+        await async_refresh_rule_titles(self.hass, self.config_entry)
 
         now = dt_util.utcnow()
         findings = self.scan()

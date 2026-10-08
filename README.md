@@ -66,9 +66,10 @@ or integration page. If something keeps coming back on its own, the repair
 says so and suggests *Allow offline* first.
 
 **Your rules** (both *Allow offline* and *Ignore*) are listed on the Device
-Doctor page under **Settings → Devices & services → Device Doctor**. Click one
-to change how long it may be offline, delete it to undo, or use **Add allowed
-offline rule** to add one without waiting for a repair.
+Doctor page under **Settings → Devices & services → Device Doctor**, for
+example *Leak sensor (Hallway) · 1 week*. Click one to change how long it may
+be offline, delete it to undo, or use **Add allowed offline rule** to add one
+without waiting for a repair.
 
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:

@@ -11,10 +11,12 @@ from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers.translation import async_get_translations
 
 from .const import (
     ALLOWED_OFFLINE_SECONDS,
+    DOMAIN,
     KIND_DEVICE,
     RULE_ALLOWED_OFFLINE,
     RULE_TARGET_ID,
@@ -57,8 +59,17 @@ def async_get_rules(entry: ConfigEntry) -> dict[tuple[str, str], Rule]:
     return rules
 
 
-@callback
-def async_set_rule(
+# Used when the translations can't be loaded; same as translations/en.json.
+DURATION_FALLBACK = {
+    "1d": "1 day",
+    "3d": "3 days",
+    "7d": "1 week",
+    "30d": "30 days",
+    "always": "Always (ignore)",
+}
+
+
+async def async_set_rule(
     hass: HomeAssistant,
     entry: ConfigEntry,
     kind: str,
@@ -71,7 +82,7 @@ def async_set_rule(
         RULE_TARGET_ID: target_id,
         RULE_ALLOWED_OFFLINE: allowed,
     }
-    title = async_target_title(hass, kind, target_id)
+    title = await async_rule_title(hass, kind, target_id, allowed)
     unique_id = rule_unique_id(kind, target_id)
     for subentry in entry.subentries.values():
         if (
@@ -93,13 +104,48 @@ def async_set_rule(
     )
 
 
+async def async_refresh_rule_titles(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update rule titles after a device was renamed or moved to another area."""
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != SUBENTRY_ALLOWED_OFFLINE:
+            continue
+        title = await async_rule_title(
+            hass,
+            subentry.data[RULE_TARGET_KIND],
+            subentry.data[RULE_TARGET_ID],
+            subentry.data[RULE_ALLOWED_OFFLINE],
+        )
+        if title != subentry.title:
+            hass.config_entries.async_update_subentry(entry, subentry, title=title)
+
+
+async def async_rule_title(
+    hass: HomeAssistant, kind: str, target_id: str, allowed: str
+) -> str:
+    """Return e.g. 'Leak sensor (Hallway) · 1 week' for the rules list."""
+    translations = await async_get_translations(
+        hass, hass.config.language, "selector", [DOMAIN]
+    )
+    duration = translations.get(
+        f"component.{DOMAIN}.selector.allowed_offline.options.{allowed}",
+        DURATION_FALLBACK.get(allowed, allowed),
+    )
+    return f"{async_target_title(hass, kind, target_id)} · {duration}"
+
+
 @callback
 def async_target_title(hass: HomeAssistant, kind: str, target_id: str) -> str:
-    """Return a readable name for a rule's target."""
+    """Return a readable name: the device with its area, or the integration."""
     if kind == KIND_DEVICE:
-        if device := dr.async_get(hass).async_get(target_id):
-            return device.name_by_user or device.name or target_id
-        return target_id
+        device = dr.async_get(hass).async_get(target_id)
+        if device is None:
+            return target_id
+        name = device.name_by_user or device.name or target_id
+        if device.area_id and (
+            area := ar.async_get(hass).async_get_area(device.area_id)
+        ):
+            return f"{name} ({area.name})"
+        return name
     if entry := hass.config_entries.async_get_entry(target_id):
         return f"{entry.title or entry.domain} ({entry.domain})"
     return target_id

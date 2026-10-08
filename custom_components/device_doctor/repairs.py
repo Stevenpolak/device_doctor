@@ -90,7 +90,7 @@ class DeviceDoctorRepairFlow(RepairsFlow):
     ) -> data_entry_flow.FlowResult:
         """Ask how long it may be offline, then save a rule."""
         if user_input is not None:
-            return self._save_rule(user_input[RULE_ALLOWED_OFFLINE])
+            return await self._save_rule(user_input[RULE_ALLOWED_OFFLINE])
         return self.async_show_form(
             step_id="allow_offline",
             data_schema=vol.Schema(
@@ -107,13 +107,13 @@ class DeviceDoctorRepairFlow(RepairsFlow):
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:
         """Save an "always allowed offline" rule, i.e. stop checking it."""
-        return self._save_rule(ALWAYS)
+        return await self._save_rule(ALWAYS)
 
-    def _save_rule(self, allowed: str) -> data_entry_flow.FlowResult:
+    async def _save_rule(self, allowed: str) -> data_entry_flow.FlowResult:
         if (doctor := _loaded_doctor(self.hass)) is None:
             return self.async_abort(reason="not_loaded")
         # Saving the rule reloads Device Doctor, which then applies it.
-        async_set_rule(
+        await async_set_rule(
             self.hass,
             doctor,
             str(self._data["kind"]),

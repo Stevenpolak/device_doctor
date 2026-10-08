@@ -202,7 +202,9 @@ async def test_ignored_devices(
 
     ignored = [device_id_of(hass, domain) for domain in ("zha", "dlna_dmr")]
     for device_id in ignored:
-        async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, device_id, ALWAYS)
+        await async_set_rule(
+            hass, coordinator.config_entry, KIND_DEVICE, device_id, ALWAYS
+        )
     assert coordinator.scan().problems == {}
 
 
@@ -249,8 +251,10 @@ async def test_skipped_entities_per_exclusion(
     tv = add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE])
     add_integration(hass, "zha", ["1", "2", "3"], devices=3)
     sensor_id = device_id_of(hass, "zha")
-    async_set_rule(hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, ALWAYS)
-    async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor_id, ALWAYS)
+    await async_set_rule(
+        hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, ALWAYS
+    )
+    await async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor_id, ALWAYS)
 
     assert coordinator.scan().skipped == {
         "ignored_integrations": 2,

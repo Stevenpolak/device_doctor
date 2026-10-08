@@ -52,7 +52,7 @@ from .const import (
     SECTIONS,
     SUBENTRY_ALLOWED_OFFLINE,
 )
-from .rules import async_target_title, rule_unique_id
+from .rules import async_rule_title, async_target_title, rule_unique_id
 from .selectors import allowed_offline_selector
 
 CONF_DEVICE = "device"
@@ -109,7 +109,7 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """A device behind a hub, such as one Zigbee sensor."""
         if user_input is not None:
-            return self._create(
+            return await self._create(
                 KIND_DEVICE, user_input[CONF_DEVICE], user_input[RULE_ALLOWED_OFFLINE]
             )
         hubs = {**DEFAULT_OPTIONS, **self._get_entry().options}[CONF_HUB_DOMAINS]
@@ -127,7 +127,7 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """A whole integration entry, such as one ESPHome device."""
         if user_input is not None:
-            return self._create(
+            return await self._create(
                 KIND_ENTRY, user_input[CONF_ENTRY], user_input[RULE_ALLOWED_OFFLINE]
             )
         return self.async_show_form(
@@ -140,14 +140,15 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Change how long the rule allows."""
         subentry = self._get_reconfigure_subentry()
+        kind = subentry.data[RULE_TARGET_KIND]
+        target_id = subentry.data[RULE_TARGET_ID]
         if user_input is not None:
+            allowed = user_input[RULE_ALLOWED_OFFLINE]
             return self.async_update_and_abort(
                 self._get_entry(),
                 subentry,
-                data={
-                    **subentry.data,
-                    RULE_ALLOWED_OFFLINE: user_input[RULE_ALLOWED_OFFLINE],
-                },
+                title=await async_rule_title(self.hass, kind, target_id, allowed),
+                data={**subentry.data, RULE_ALLOWED_OFFLINE: allowed},
             )
         return self.async_show_form(
             step_id="reconfigure",
@@ -159,10 +160,14 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
                     ): allowed_offline_selector()
                 }
             ),
-            description_placeholders={"title": subentry.title},
+            description_placeholders={
+                "title": async_target_title(self.hass, kind, target_id)
+            },
         )
 
-    def _create(self, kind: str, target_id: str, allowed: str) -> SubentryFlowResult:
+    async def _create(
+        self, kind: str, target_id: str, allowed: str
+    ) -> SubentryFlowResult:
         unique_id = rule_unique_id(kind, target_id)
         if any(
             subentry.unique_id == unique_id
@@ -170,7 +175,7 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
         ):
             return self.async_abort(reason="already_configured")
         return self.async_create_entry(
-            title=async_target_title(self.hass, kind, target_id),
+            title=await async_rule_title(self.hass, kind, target_id, allowed),
             data={
                 RULE_TARGET_KIND: kind,
                 RULE_TARGET_ID: target_id,
