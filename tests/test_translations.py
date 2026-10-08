@@ -15,7 +15,11 @@ import re
 import string
 from typing import Any
 
+from homeassistant.core import HomeAssistant
 import pytest
+
+from custom_components.device_doctor.coordinator import Problem, _placeholders
+from custom_components.device_doctor.repairs import PLACEHOLDERS
 
 TRANSLATIONS = (
     Path(__file__).parent.parent
@@ -100,3 +104,16 @@ def test_setup_and_options_forms_match() -> None:
         EN["config"]["step"]["user"]["sections"]
         == EN["options"]["step"]["init"]["sections"]
     )
+
+
+async def test_repair_texts_only_use_supplied_placeholders(hass: HomeAssistant) -> None:
+    """Every {placeholder} in a repair text is filled in, so none shows an error."""
+    problem = Problem(
+        id="x", kind="entry", title="t", domain="d", entry_id="x", detail="loaded"
+    )
+    supplied = set(_placeholders(hass, problem))
+    assert set(PLACEHOLDERS) <= supplied, "the repair flow passes on unknown values"
+    for key, issue in EN["issues"].items():
+        for path, text in flatten(issue).items():
+            missing = placeholders(text) - supplied
+            assert not missing, f"issues.{key}.{path} uses {missing}"

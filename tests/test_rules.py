@@ -10,7 +10,11 @@ from homeassistant.config_entries import SOURCE_USER, ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    issue_registry as ir,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -31,7 +35,11 @@ from custom_components.device_doctor.const import (
 )
 from custom_components.device_doctor.coordinator import DeviceDoctorCoordinator
 from custom_components.device_doctor.repairs import async_create_fix_flow
-from custom_components.device_doctor.rules import async_get_rules, async_set_rule
+from custom_components.device_doctor.rules import (
+    async_get_rules,
+    async_set_rule,
+    integration_name,
+)
 
 from .test_coordinator import add_integration, device_id_of, entity_id_of
 
@@ -416,3 +424,33 @@ async def test_set_rule_switches_type(hass: HomeAssistant) -> None:
     (subentry,) = doctor.subentries.values()
     assert subentry.subentry_type == "allowed_offline"
     assert subentry.title == "tv · 1 week"
+
+
+async def test_since_marks_unknown_start(
+    hass: HomeAssistant,
+    coordinator: DeviceDoctorCoordinator,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """'Offline since' gets '≥' when it was never seen working."""
+    dead = add_integration(hass, "dead", [STATE_UNAVAILABLE])
+    flaky = add_integration(hass, "flaky", ["1"])
+    await coordinator.async_refresh()
+    set_state(hass, flaky, STATE_UNAVAILABLE)
+    freezer.tick(HOUR)
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+
+    issues = ir.async_get(hass)
+    dead_since = issues.async_get_issue(DOMAIN, f"entry_{dead.entry_id}")
+    flaky_since = issues.async_get_issue(DOMAIN, f"entry_{flaky.entry_id}")
+    assert dead_since.translation_placeholders["since"].startswith("≥ ")
+    assert not flaky_since.translation_placeholders["since"].startswith("≥")
+
+
+async def test_integration_display_name(hass: HomeAssistant) -> None:
+    """Loaded integrations show their name; others fall back to the id."""
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    assert integration_name(hass, DOMAIN) == "Device Doctor"
+    assert integration_name(hass, "not_loaded_anywhere") == "not_loaded_anywhere"

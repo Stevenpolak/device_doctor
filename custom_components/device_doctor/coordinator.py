@@ -40,7 +40,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .rules import Rule, async_get_rules, async_refresh_rule_titles
+from .rules import Rule, async_get_rules, async_refresh_rule_titles, integration_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -407,9 +407,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 is_persistent=False,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key=problem.issue_key,
-                translation_placeholders=_placeholders(problem),
+                translation_placeholders=_placeholders(self.hass, problem),
                 data={
-                    **_placeholders(problem),
+                    **_placeholders(self.hass, problem),
                     "id": problem.id,
                     "kind": problem.kind,
                     "entry_id": problem.entry_id,
@@ -449,20 +449,25 @@ def _seconds_since(stamp: str, now: datetime) -> int:
     return max(0, int((now - then).total_seconds())) if then else 0
 
 
-def _placeholders(problem: Problem) -> dict[str, str]:
+def _placeholders(hass: HomeAssistant, problem: Problem) -> dict[str, str]:
     """Plain values for the repair texts; the wording lives in the translations.
 
     Hassfest only allows simple {name} placeholders (no ICU plural/select), so
     the texts show these as labelled facts that need no grammar.
     """
-    since = dt_util.parse_datetime(problem.since) if problem.since else None
+    since_text = "—"
+    if since := dt_util.parse_datetime(problem.since) if problem.since else None:
+        since_text = dt_util.as_local(since).strftime("%Y-%m-%d %H:%M")
+        if problem.last_ok is None:
+            # Never seen working, so it has been offline at least this long.
+            since_text = f"≥ {since_text}"
     return {
         "title": problem.title,
-        "domain": problem.domain,
+        "domain": integration_name(hass, problem.domain),
         "bad": str(problem.bad),
         "total": str(problem.total),
         "reason": problem.reason or "—",
-        "since": dt_util.as_local(since).strftime("%Y-%m-%d %H:%M") if since else "—",
+        "since": since_text,
         "returns_7d": str(problem.returns_7d),
         "link": problem.link,
     }

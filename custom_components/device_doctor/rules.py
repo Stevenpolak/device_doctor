@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.loader import async_get_loaded_integration
 
 from .const import (
     ALLOWED_OFFLINE_SECONDS,
@@ -174,5 +175,14 @@ def async_target_title(hass: HomeAssistant, kind: str, target_id: str) -> str:
             return f"{name} ({area.name})"
         return name
     if entry := hass.config_entries.async_get_entry(target_id):
-        return f"{entry.title or entry.domain} ({entry.domain})"
+        return f"{entry.title or entry.domain} ({integration_name(hass, entry.domain)})"
     return target_id
+
+
+@callback
+def integration_name(hass: HomeAssistant, domain: str) -> str:
+    """Return an integration's display name, such as "ESPHome" for esphome."""
+    try:
+        return async_get_loaded_integration(hass, domain).name
+    except Exception:  # noqa: BLE001 - not loaded (e.g. failed setup): use the id
+        return domain
