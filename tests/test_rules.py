@@ -530,3 +530,33 @@ async def test_single_device_integration_uses_device_name(
         device_id_of(hass, "bambu_lab"), name_by_user="P1S"
     )
     assert async_target_title(hass, KIND_ENTRY, printer.entry_id) == "P1S (bambu_lab)"
+
+
+async def test_sub_devices_dont_count_for_naming(hass: HomeAssistant) -> None:
+    """A printer with a spool holder sub-device is still named after the printer."""
+    printer = add_integration(
+        hass, "bambu_lab", ["1"], devices=1, title="01P09C551800997"
+    )
+    dev_reg = dr.async_get(hass)
+    main_id = device_id_of(hass, "bambu_lab")
+    dev_reg.async_update_device(main_id, name_by_user="P1S")
+    spool = dev_reg.async_get_or_create(
+        config_entry_id=printer.entry_id,
+        identifiers={("bambu_lab", "spool")},
+        name="External Spool",
+    )
+    dev_reg.async_update_device(spool.id, via_device_id=main_id)
+    assert async_target_title(hass, KIND_ENTRY, printer.entry_id) == "P1S (bambu_lab)"
+
+
+async def test_cog_shows_duration_and_link(hass: HomeAssistant) -> None:
+    """The cog popup tells how long it's allowed and links to its page."""
+    doctor = await _doctor_with_rule(hass, "3d")
+    (subentry,) = doctor.subentries.values()
+    result = await hass.config_entries.subentries.async_init(
+        (doctor.entry_id, subentry.subentry_type),
+        context={"source": "reconfigure", "subentry_id": subentry.subentry_id},
+    )
+    placeholders = result["description_placeholders"]
+    assert placeholders["duration"] == "3 days"
+    assert placeholders["link"] == "/config/integrations/dashboard"  # tv entry is gone

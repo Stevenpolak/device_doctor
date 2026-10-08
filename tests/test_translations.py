@@ -117,3 +117,11 @@ async def test_repair_texts_only_use_supplied_placeholders(hass: HomeAssistant) 
         for path, text in flatten(issue).items():
             missing = placeholders(text) - supplied
             assert not missing, f"issues.{key}.{path} uses {missing}"
+
+
+def test_rule_popups_only_use_supplied_placeholders() -> None:
+    """Rule flow texts only use the values the rule flows pass on."""
+    supplied = {"title", "link", "duration"}
+    for path, text in flatten(EN["config_subentries"]).items():
+        missing = placeholders(text) - supplied
+        assert not missing, f"config_subentries.{path} uses {missing}"

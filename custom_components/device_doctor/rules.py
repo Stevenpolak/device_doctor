@@ -151,14 +151,30 @@ async def async_rule_title(
     name = async_target_title(hass, kind, target_id)
     if allowed == IGNORE:
         return name
+    return f"{name} · {await async_duration_label(hass, allowed)}"
+
+
+async def async_duration_label(hass: HomeAssistant, allowed: str) -> str:
+    """Return a duration as the duration picker shows it, e.g. '3 days'."""
     translations = await async_get_translations(
         hass, hass.config.language, "selector", [DOMAIN]
     )
-    duration = translations.get(
+    return translations.get(
         f"component.{DOMAIN}.selector.allowed_offline.options.{allowed}",
         DURATION_FALLBACK.get(allowed, allowed),
     )
-    return f"{name} · {duration}"
+
+
+@callback
+def async_target_link(hass: HomeAssistant, kind: str, target_id: str) -> str:
+    """Return the target's page in the Home Assistant UI."""
+    if kind == KIND_DEVICE:
+        return f"/config/devices/device/{target_id}"
+    if entry := hass.config_entries.async_get_entry(target_id):
+        return (
+            f"/config/integrations/integration/{entry.domain}#config_entry={target_id}"
+        )
+    return "/config/integrations/dashboard"
 
 
 @callback
@@ -178,9 +194,12 @@ def async_target_title(hass: HomeAssistant, kind: str, target_id: str) -> str:
         return target_id
     name = entry.title or entry.domain
     # One device, one name: its device name beats e.g. a serial number title.
+    # Sub-devices (such as a printer's spool holder) don't count.
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), target_id)
-    if len(devices) == 1:
-        name = devices[0].name_by_user or devices[0].name or name
+    ids = {device.id for device in devices}
+    main = [device for device in devices if device.via_device_id not in ids]
+    if len(main) == 1:
+        name = main[0].name_by_user or main[0].name or name
     return f"{name} ({integration_name(hass, entry.domain)})"
 
 

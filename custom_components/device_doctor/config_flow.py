@@ -55,9 +55,11 @@ from .const import (
     SUBENTRY_IGNORED,
 )
 from .rules import (
+    async_duration_label,
     async_find_rule,
     async_rule_title,
     async_set_rule,
+    async_target_link,
     async_target_title,
     rule_data,
     rule_unique_id,
@@ -169,14 +171,18 @@ class _RuleFlow(ConfigSubentryFlow):
         )
         return self.async_abort(reason="changed")
 
-    def _target_placeholders(self) -> dict[str, str]:
+    async def _target_placeholders(self) -> dict[str, str]:
+        """Name, page link and current duration of the rule being changed."""
         subentry = self._get_reconfigure_subentry()
+        kind = subentry.data[RULE_TARGET_KIND]
+        target_id = subentry.data[RULE_TARGET_ID]
+        allowed = subentry.data.get(RULE_ALLOWED_OFFLINE)
         return {
-            "title": async_target_title(
-                self.hass,
-                subentry.data[RULE_TARGET_KIND],
-                subentry.data[RULE_TARGET_ID],
-            )
+            "title": async_target_title(self.hass, kind, target_id),
+            "link": async_target_link(self.hass, kind, target_id),
+            "duration": await async_duration_label(self.hass, allowed)
+            if allowed
+            else "",
         }
 
     def _schema(self, key: str, target: Any) -> vol.Schema:
@@ -211,7 +217,7 @@ class IgnoredFlow(_RuleFlow):
         return self.async_show_menu(
             step_id="reconfigure",
             menu_options=["allow_offline", "remove"],
-            description_placeholders=self._target_placeholders(),
+            description_placeholders=await self._target_placeholders(),
         )
 
     async def async_step_allow_offline(
@@ -229,7 +235,7 @@ class IgnoredFlow(_RuleFlow):
                     )
                 }
             ),
-            description_placeholders=self._target_placeholders(),
+            description_placeholders=await self._target_placeholders(),
         )
 
 
@@ -245,7 +251,7 @@ class AllowedOfflineFlow(_RuleFlow):
         return self.async_show_menu(
             step_id="reconfigure",
             menu_options=["duration", "ignore", "remove"],
-            description_placeholders=self._target_placeholders(),
+            description_placeholders=await self._target_placeholders(),
         )
 
     async def async_step_duration(
@@ -276,7 +282,7 @@ class AllowedOfflineFlow(_RuleFlow):
                     ): allowed_offline_selector()
                 }
             ),
-            description_placeholders=self._target_placeholders(),
+            description_placeholders=await self._target_placeholders(),
         )
 
     async def async_step_ignore(

@@ -284,7 +284,7 @@
         },
         "reconfigure": {
           "title": "{title}",
-          "description": "{title} is ignored: Device Doctor never checks it.",
+          "description": "{title} is ignored: Device Doctor never checks it.\n\n[Open its page]({link})",
           "menu_options": {
             "allow_offline": "Allow offline for a while instead",
             "remove": "Stop ignoring"
@@ -342,7 +342,7 @@
         },
         "reconfigure": {
           "title": "{title}",
-          "description": "{title} may be offline for a while before Device Doctor reports it.",
+          "description": "{title} may be offline for {duration} before Device Doctor reports it.\n\n[Open its page]({link})",
           "menu_options": {
             "duration": "Change how long",
             "ignore": "Ignore instead",
