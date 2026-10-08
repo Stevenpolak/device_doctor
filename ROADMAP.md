@@ -37,8 +37,8 @@ for Device Doctor in HACS), then as `v0.5.0`.
 - [x] Plural texts: settled by Hassfest, which only allows plain {name}
       placeholders. Repair texts show labelled facts instead ("Unavailable
       entities: 1 of 1"), which need no plural grammar in any language
-- [ ] The link in a repair opens inside Home Assistant, in the browser and in
-      the companion app
+- [x] The link in a repair opens inside Home Assistant, in the browser and in
+      the companion app (checked 2026-10-08)
 - [ ] An allowed-offline rule on the Growatt inverters behaves overnight
 
 ## 2. HACS default store

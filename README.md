@@ -68,9 +68,11 @@ says so and suggests *Allow offline* first.
 **Your rules** are listed on the Device Doctor page under **Settings → Devices
 & services → Device Doctor**, each marked *Ignored* or *Allowed offline*, for
 example *Leak sensor (Hallway)* or *Growatt inverter (growatt_server) · 1 day*.
-Click an *Allowed offline* rule to change how long it may be offline, delete
-any rule to undo it, or use **Ignore a device or integration** / **Allow a
-device or integration offline** to add one without waiting for a repair.
+Each rule's cog lets you change it: how long it may be offline, switch
+between *Ignored* and *Allowed offline*, or remove the rule so it's checked
+normally again. Use **Ignore a device or integration** / **Allow a device or
+integration offline** to add one without waiting for a repair. The list is
+sorted alphabetically by name.
 
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:

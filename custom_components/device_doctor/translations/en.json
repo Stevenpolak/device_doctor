@@ -281,10 +281,29 @@
           "data": {
             "entry": "Integration"
           }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "{title} is ignored: Device Doctor never checks it.",
+          "menu_options": {
+            "allow_offline": "Allow offline for a while instead",
+            "remove": "Stop ignoring"
+          }
+        },
+        "allow_offline": {
+          "title": "Allow {title} offline",
+          "data": {
+            "allowed_offline": "May be offline for"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this."
+          }
         }
       },
       "abort": {
-        "already_configured": "There is already a rule for this. Change or delete it on the Device Doctor page."
+        "already_configured": "There is already a rule for this. Change or delete it on the Device Doctor page.",
+        "changed": "The rule was changed.",
+        "removed": "The rule was removed. It is checked normally again."
       }
     },
     "allowed_offline": {
@@ -323,6 +342,15 @@
         },
         "reconfigure": {
           "title": "{title}",
+          "description": "{title} may be offline for a while before Device Doctor reports it.",
+          "menu_options": {
+            "duration": "Change how long",
+            "ignore": "Ignore instead",
+            "remove": "Stop allowing offline"
+          }
+        },
+        "duration": {
+          "title": "Change how long {title} may be offline",
           "description": "How long may {title} be offline before Device Doctor reports it?",
           "data": {
             "allowed_offline": "May be offline for"
@@ -334,7 +362,9 @@
       },
       "abort": {
         "already_configured": "There is already a rule for this. Change or delete it on the Device Doctor page.",
-        "reconfigure_successful": "The rule was updated."
+        "reconfigure_successful": "The rule was updated.",
+        "changed": "The rule was changed.",
+        "removed": "The rule was removed. It is checked normally again."
       }
     }
   },

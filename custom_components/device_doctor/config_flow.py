@@ -57,6 +57,7 @@ from .const import (
 from .rules import (
     async_find_rule,
     async_rule_title,
+    async_set_rule,
     async_target_title,
     rule_data,
     rule_unique_id,
@@ -146,6 +147,38 @@ class _RuleFlow(ConfigSubentryFlow):
             data_schema=self._schema(CONF_ENTRY, _entry_select(self.hass)),
         )
 
+    async def async_step_remove(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Delete the rule, so the target is checked normally again."""
+        subentry = self._get_reconfigure_subentry()
+        self.hass.config_entries.async_remove_subentry(
+            self._get_entry(), subentry.subentry_id
+        )
+        return self.async_abort(reason="removed")
+
+    async def _switch(self, allowed: str) -> SubentryFlowResult:
+        """Replace the rule by one of the other type (or another duration)."""
+        subentry = self._get_reconfigure_subentry()
+        await async_set_rule(
+            self.hass,
+            self._get_entry(),
+            subentry.data[RULE_TARGET_KIND],
+            subentry.data[RULE_TARGET_ID],
+            allowed,
+        )
+        return self.async_abort(reason="changed")
+
+    def _target_placeholders(self) -> dict[str, str]:
+        subentry = self._get_reconfigure_subentry()
+        return {
+            "title": async_target_title(
+                self.hass,
+                subentry.data[RULE_TARGET_KIND],
+                subentry.data[RULE_TARGET_ID],
+            )
+        }
+
     def _schema(self, key: str, target: Any) -> vol.Schema:
         schema: dict[Any, Any] = {vol.Required(key): target}
         if self.with_duration:
@@ -171,6 +204,34 @@ class _RuleFlow(ConfigSubentryFlow):
 class IgnoredFlow(_RuleFlow):
     """Ignore a device or integration: it is never checked."""
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """The cog: allow it offline for a while instead, or stop ignoring."""
+        return self.async_show_menu(
+            step_id="reconfigure",
+            menu_options=["allow_offline", "remove"],
+            description_placeholders=self._target_placeholders(),
+        )
+
+    async def async_step_allow_offline(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Turn the ignored rule into an allowed-offline rule."""
+        if user_input is not None:
+            return await self._switch(user_input[RULE_ALLOWED_OFFLINE])
+        return self.async_show_form(
+            step_id="allow_offline",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(RULE_ALLOWED_OFFLINE, default="1d"): (
+                        allowed_offline_selector()
+                    )
+                }
+            ),
+            description_placeholders=self._target_placeholders(),
+        )
+
 
 class AllowedOfflineFlow(_RuleFlow):
     """Allow a device or integration to be offline for a while."""
@@ -180,20 +241,33 @@ class AllowedOfflineFlow(_RuleFlow):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
+        """The cog: change how long, ignore instead, or stop allowing offline."""
+        return self.async_show_menu(
+            step_id="reconfigure",
+            menu_options=["duration", "ignore", "remove"],
+            description_placeholders=self._target_placeholders(),
+        )
+
+    async def async_step_duration(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         """Change how long the rule allows."""
         subentry = self._get_reconfigure_subentry()
-        kind = subentry.data[RULE_TARGET_KIND]
-        target_id = subentry.data[RULE_TARGET_ID]
         if user_input is not None:
             allowed = user_input[RULE_ALLOWED_OFFLINE]
             return self.async_update_and_abort(
                 self._get_entry(),
                 subentry,
-                title=await async_rule_title(self.hass, kind, target_id, allowed),
+                title=await async_rule_title(
+                    self.hass,
+                    subentry.data[RULE_TARGET_KIND],
+                    subentry.data[RULE_TARGET_ID],
+                    allowed,
+                ),
                 data={**subentry.data, RULE_ALLOWED_OFFLINE: allowed},
             )
         return self.async_show_form(
-            step_id="reconfigure",
+            step_id="duration",
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -202,10 +276,14 @@ class AllowedOfflineFlow(_RuleFlow):
                     ): allowed_offline_selector()
                 }
             ),
-            description_placeholders={
-                "title": async_target_title(self.hass, kind, target_id)
-            },
+            description_placeholders=self._target_placeholders(),
         )
+
+    async def async_step_ignore(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Turn the allowed-offline rule into an ignored rule."""
+        return await self._switch(IGNORE)
 
 
 def _entry_select(hass: HomeAssistant) -> SelectSelector:

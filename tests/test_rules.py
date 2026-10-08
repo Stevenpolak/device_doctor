@@ -6,7 +6,11 @@ from collections.abc import AsyncGenerator
 from datetime import timedelta
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import SOURCE_USER, ConfigSubentryData
+from homeassistant.config_entries import (
+    SOURCE_USER,
+    ConfigEntryState,
+    ConfigSubentryData,
+)
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -38,6 +42,7 @@ from custom_components.device_doctor.repairs import async_create_fix_flow
 from custom_components.device_doctor.rules import (
     async_get_rules,
     async_set_rule,
+    async_target_title,
     integration_name,
 )
 
@@ -280,6 +285,10 @@ async def test_rule_flow_add_duplicate_and_change(hass: HomeAssistant) -> None:
         (doctor.entry_id, SUBENTRY_ALLOWED_OFFLINE),
         context={"source": "reconfigure", "subentry_id": subentry.subentry_id},
     )
+    assert result["type"] is FlowResultType.MENU
+    result = await manager.async_configure(
+        result["flow_id"], {"next_step_id": "duration"}
+    )
     result = await manager.async_configure(
         result["flow_id"], {"allowed_offline": "30d"}
     )
@@ -454,3 +463,70 @@ async def test_integration_display_name(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(doctor.entry_id)
     assert integration_name(hass, DOMAIN) == "Device Doctor"
     assert integration_name(hass, "not_loaded_anywhere") == "not_loaded_anywhere"
+
+
+async def _cog(hass: HomeAssistant, doctor: MockConfigEntry, choice: str, form=None):
+    """Open the only rule's cog menu, pick an option, fill in its form."""
+    (subentry,) = doctor.subentries.values()
+    manager = hass.config_entries.subentries
+    result = await manager.async_init(
+        (doctor.entry_id, subentry.subentry_type),
+        context={"source": "reconfigure", "subentry_id": subentry.subentry_id},
+    )
+    assert result["type"] is FlowResultType.MENU
+    result = await manager.async_configure(result["flow_id"], {"next_step_id": choice})
+    if form is not None:
+        result = await manager.async_configure(result["flow_id"], form)
+    await hass.async_block_till_done()
+    return result
+
+
+async def _doctor_with_rule(hass: HomeAssistant, allowed: str) -> MockConfigEntry:
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    await hass.async_block_till_done()
+    await async_set_rule(hass, doctor, KIND_ENTRY, "tv", allowed)
+    await hass.async_block_till_done()
+    return doctor
+
+
+async def test_cog_ignored_to_allowed_offline(hass: HomeAssistant) -> None:
+    """An ignored rule's cog turns it into an allowed-offline rule."""
+    doctor = await _doctor_with_rule(hass, IGNORE)
+    result = await _cog(hass, doctor, "allow_offline", {"allowed_offline": "3d"})
+    assert result["reason"] == "changed"
+    (subentry,) = doctor.subentries.values()
+    assert subentry.subentry_type == "allowed_offline"
+    assert async_get_rules(doctor)[KIND_ENTRY, "tv"].seconds == 3 * 86400
+
+
+async def test_cog_allowed_offline_to_ignored(hass: HomeAssistant) -> None:
+    """An allowed-offline rule's cog turns it into an ignored rule."""
+    doctor = await _doctor_with_rule(hass, "1d")
+    result = await _cog(hass, doctor, "ignore")
+    assert result["reason"] == "changed"
+    assert async_get_rules(doctor)[KIND_ENTRY, "tv"].ignored
+
+
+@pytest.mark.parametrize("allowed", [IGNORE, "1d"])
+async def test_cog_remove(hass: HomeAssistant, allowed: str) -> None:
+    """'Stop ignoring' / 'Stop allowing offline' deletes the rule."""
+    doctor = await _doctor_with_rule(hass, allowed)
+    result = await _cog(hass, doctor, "remove")
+    assert result["reason"] == "removed"
+    assert not doctor.subentries
+    assert doctor.state is ConfigEntryState.LOADED
+
+
+async def test_single_device_integration_uses_device_name(
+    hass: HomeAssistant,
+) -> None:
+    """An integration with one device is named after that device."""
+    printer = add_integration(
+        hass, "bambu_lab", ["1"], devices=1, title="01P09C551800997"
+    )
+    dr.async_get(hass).async_update_device(
+        device_id_of(hass, "bambu_lab"), name_by_user="P1S"
+    )
+    assert async_target_title(hass, KIND_ENTRY, printer.entry_id) == "P1S (bambu_lab)"

@@ -174,9 +174,14 @@ def async_target_title(hass: HomeAssistant, kind: str, target_id: str) -> str:
         ):
             return f"{name} ({area.name})"
         return name
-    if entry := hass.config_entries.async_get_entry(target_id):
-        return f"{entry.title or entry.domain} ({integration_name(hass, entry.domain)})"
-    return target_id
+    if (entry := hass.config_entries.async_get_entry(target_id)) is None:
+        return target_id
+    name = entry.title or entry.domain
+    # One device, one name: its device name beats e.g. a serial number title.
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), target_id)
+    if len(devices) == 1:
+        name = devices[0].name_by_user or devices[0].name or name
+    return f"{name} ({integration_name(hass, entry.domain)})"
 
 
 @callback

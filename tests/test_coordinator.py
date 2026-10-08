@@ -52,7 +52,8 @@ def add_integration(
 
     With ``devices``, the sensors are spread round-robin over that many devices.
     """
-    entry = MockConfigEntry(domain=domain, title=domain, **entry_kwargs)
+    entry_kwargs.setdefault("title", domain)
+    entry = MockConfigEntry(domain=domain, **entry_kwargs)
     entry.add_to_hass(hass)
     ent_reg = er.async_get(hass)
     dev_reg = dr.async_get(hass)
