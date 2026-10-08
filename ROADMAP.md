@@ -59,16 +59,16 @@ Requirements (already met are ticked):
 - [x] At least one GitHub release, created after the checks passed
 
 Fixes and checks before submitting:
-- [ ] Remove `render_readme` from `hacs.json` (no longer a documented key)
-- [ ] Consider `hide_default_branch: true`, so users only install releases
-- [ ] A stable release (not a beta) as latest release
-- [ ] Issue templates: bug report asking for the diagnostics download and
+- [x] Remove `render_readme` from `hacs.json` (no longer a documented key)
+- [x] `hide_default_branch: true`, so users only install releases
+- [x] A stable release (not a beta) as latest release
+- [x] Issue templates: bug report asking for the diagnostics download and
       Home Assistant version; feature request
 - [ ] README check: installation via the default store once accepted,
       screenshots up to date
 - [ ] Fresh install test: add as custom repository on a clean Home Assistant,
       install, set up, restart, remove
-- [ ] Review the code once more against Home Assistant's integration quality
+- [x] Review the code once more against Home Assistant's integration quality
       checklist (runtime data, unload, diagnostics, translations of errors)
 - [ ] Submit: fork `hacs/default`, branch from master, add
       `Stevenpolak/device_doctor` to the `integration` file in alphabetical

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Translations
+    url: https://github.com/Stevenpolak/device_doctor#languages
+    about: Add or fix a language by editing translations/<language>.json
