@@ -132,13 +132,41 @@
     }
   },
   "issues": {
+    "entry_retrying": {
+      "title": "{title} ({domain}) keeps failing to start",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) keeps failing to start",
+            "description": "{title} keeps trying to start, but fails every time.\n\n- Last error: {reason}\n- Offline since: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Reload** sometimes fixes this, for example after a network problem.\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. If it came back by itself several times this week, that is probably the case. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
+            "menu_options": {
+              "reload": "Reload integration",
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
+        }
+      }
+    },
     "entry_failed": {
       "title": "{title} ({domain}) failed to start",
       "fix_flow": {
         "step": {
           "init": {
             "title": "{title} ({domain}) failed to start",
-            "description": "{title} {state, select, setup_retry {keeps trying to start, but fails every time} migration_error {could not update its stored settings} failed_unload {could not be stopped cleanly} other {failed to start}}, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now.{has_reason, select, yes {\n\nLast error: {reason}} other {}}\n\n**Reload** sometimes fixes this, for example after a network problem.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
+            "description": "{title} failed to start.\n\n- Last error: {reason}\n- Offline since: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Reload** sometimes fixes this, for example after a network problem.\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. If it came back by itself several times this week, that is probably the case. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
             "menu_options": {
               "reload": "Reload integration",
               "allow_offline": "Allow offline for a while",
@@ -166,7 +194,7 @@
         "step": {
           "init": {
             "title": "{title} ({domain}) is not working",
-            "description": "{title} is running, but {bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now.\n\n**Reload** often restores a connection that silently died.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
+            "description": "{title} is running, but most of its entities are unavailable.\n\n- Unavailable entities: {bad} of {total}\n- Offline since: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Reload** often restores a connection that silently died.\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. If it came back by itself several times this week, that is probably the case. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
             "menu_options": {
               "reload": "Reload integration",
               "allow_offline": "Allow offline for a while",
@@ -194,7 +222,7 @@
         "step": {
           "init": {
             "title": "{title} is unavailable",
-            "description": "{bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable on this {domain} device, for {offline_unit, select, under_hour {less than an hour} hours {{offline_value, plural, one {# hour} other {# hours}}} other {{offline_value, plural, one {# day} other {# days}}}} now. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.{returns_7d, plural, =0 {} =1 {} other {\n\nIt came back # times in the past week, so it looks like it is switched off now and then. If that is expected, allow it to be offline for a while.}}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the device page]({link})",
+            "description": "This {domain} device is not reporting. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\n- Unavailable entities: {bad} of {total}\n- Offline since: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. If it came back by itself several times this week, that is probably the case. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the device page]({link})",
             "menu_options": {
               "allow_offline": "Allow offline for a while",
               "ignore": "Ignore"

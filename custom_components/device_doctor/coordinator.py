@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
-from homeassistant.config_entries import SOURCE_IGNORE, ConfigEntry
+from homeassistant.config_entries import SOURCE_IGNORE, ConfigEntry, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import (
@@ -80,6 +80,8 @@ class Problem:
         """Return the translation key of the repair issue."""
         if self.kind == KIND_DEVICE:
             return "device_problem"
+        if self.detail == ConfigEntryState.SETUP_RETRY.value:
+            return "entry_retrying"
         if self.detail in FAILED_STATE_VALUES:
             return "entry_failed"
         return "entry_unavailable"
@@ -443,24 +445,19 @@ def _seconds_since(stamp: str, now: datetime) -> int:
 
 
 def _placeholders(problem: Problem) -> dict[str, str]:
-    """Plain values for the repair texts; the wording lives in the translations."""
-    hours = problem.offline_for // 3600
-    if hours < 1:
-        offline_unit, offline_value = "under_hour", 0
-    elif hours < 48:
-        offline_unit, offline_value = "hours", hours
-    else:
-        offline_unit, offline_value = "days", hours // 24
+    """Plain values for the repair texts; the wording lives in the translations.
+
+    Hassfest only allows simple {name} placeholders (no ICU plural/select), so
+    the texts show these as labelled facts that need no grammar.
+    """
+    since = dt_util.parse_datetime(problem.since) if problem.since else None
     return {
         "title": problem.title,
         "domain": problem.domain,
-        "state": problem.detail if problem.kind == KIND_ENTRY else "",
         "bad": str(problem.bad),
         "total": str(problem.total),
-        "has_reason": "yes" if problem.reason else "no",
-        "reason": problem.reason or "",
-        "offline_value": str(offline_value),
-        "offline_unit": offline_unit,
+        "reason": problem.reason or "—",
+        "since": dt_util.as_local(since).strftime("%Y-%m-%d %H:%M") if since else "—",
         "returns_7d": str(problem.returns_7d),
         "link": problem.link,
     }

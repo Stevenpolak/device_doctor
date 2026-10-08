@@ -34,8 +34,9 @@ for Device Doctor in HACS), then as `v0.5.0`.
       ignored entries and devices from 0.4 are migrated automatically
 
 **Verify on a real install**
-- [ ] Plural texts render ("1 of 1 entity" / "32 of 32 entities"); if not,
-      switch to preformatted text
+- [x] Plural texts: settled by Hassfest, which only allows plain {name}
+      placeholders. Repair texts show labelled facts instead ("Unavailable
+      entities: 1 of 1"), which need no plural grammar in any language
 - [ ] The link in a repair opens inside Home Assistant, in the browser and in
       the companion app
 - [ ] An allowed-offline rule on the Growatt inverters behaves overnight
@@ -80,8 +81,8 @@ that ship their own `brand/` folder
 ## 3. Translations: later
 
 The texts are already prepared for translation (no English in the code,
-plural-aware wording, `tests/test_translations.py` guards every language
-file). What remains:
+labelled facts instead of plural grammar, `tests/test_translations.py`
+applies Hassfest's rules to every language file). What remains:
 
 - [ ] Dutch first, reviewed by Steven; then de, fr, es, it, pt-BR, pl, sv, da,
       nb, cs

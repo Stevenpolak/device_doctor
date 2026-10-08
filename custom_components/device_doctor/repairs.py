@@ -27,13 +27,10 @@ from .selectors import allowed_offline_selector
 PLACEHOLDERS = (
     "title",
     "domain",
-    "state",
     "bad",
     "total",
-    "has_reason",
     "reason",
-    "offline_value",
-    "offline_unit",
+    "since",
     "returns_7d",
     "link",
 )

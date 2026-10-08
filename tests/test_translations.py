@@ -1,13 +1,18 @@
 """Checks for translations/*.json.
 
-Home Assistant formats these strings with ICU MessageFormat, so a missing
-brace or an unknown placeholder only shows up as a broken text in the UI.
+Mirrors the rules Hassfest applies to translation strings, so a mistake shows
+up here instead of in CI: placeholders must be plain {names} (no ICU plural or
+select), no placeholders in single quotes, no HTML, no URLs, no leading or
+trailing spaces. Other languages must use the same keys and placeholders as
+English.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
+import string
 from typing import Any
 
 import pytest
@@ -20,83 +25,22 @@ TRANSLATIONS = (
 )
 EN = json.loads((TRANSLATIONS / "en.json").read_text(encoding="utf-8"))
 LANGUAGES = sorted(path.stem for path in TRANSLATIONS.glob("*.json"))
-PLURAL_FORMS = {"zero", "one", "two", "few", "many", "other"}
+
+# From Home Assistant's script/hassfest/translations.py
+RE_PLACEHOLDER_IN_SINGLE_QUOTES = re.compile(r"'{\w+}'")
+RE_HTML = re.compile(r"<[a-z/][^>]*>", re.IGNORECASE)
+RE_URL = re.compile(r"\w+://|www\.", re.IGNORECASE)
 
 
-class ICUError(ValueError):
-    """The string is not valid ICU MessageFormat."""
-
-
-def placeholders(message: str) -> set[str]:
-    """Return the argument names used in an ICU message."""
-    names: set[str] = set()
-    end = _message(message, 0, names, top=True)
-    if end != len(message):
-        raise ICUError(f"unexpected '}}' at {end}")
+def placeholders(text: str) -> set[str]:
+    """Return the placeholder names, failing like Hassfest on anything else."""
+    names = set()
+    for _, field_name, _, _ in string.Formatter().parse(text):
+        if field_name is not None:
+            if not field_name.isidentifier():
+                raise ValueError(f"placeholder {field_name!r} is not a plain name")
+            names.add(field_name)
     return names
-
-
-def _message(text: str, pos: int, names: set[str], top: bool = False) -> int:
-    """Parse text up to an unmatched '}' (or the end); return its position."""
-    while pos < len(text):
-        char = text[pos]
-        if char == "{":
-            pos = _argument(text, pos + 1, names)
-        elif char == "}":
-            if top:
-                raise ICUError(f"unexpected '}}' at {pos}")
-            return pos
-        else:
-            pos += 1
-    if not top:
-        raise ICUError("missing '}'")
-    return pos
-
-
-def _argument(text: str, pos: int, names: set[str]) -> int:
-    """Parse '{name}' or '{name, type, options}'; pos is just after '{'."""
-    end = _find(text, pos, ",}")
-    name = text[pos:end].strip()
-    if not name.isidentifier():
-        raise ICUError(f"bad argument name {name!r}")
-    names.add(name)
-    if text[end] == "}":
-        return end + 1
-
-    type_end = _find(text, end + 1, ",}")
-    arg_type = text[end + 1 : type_end].strip()
-    if arg_type not in ("plural", "select", "selectordinal"):
-        raise ICUError(f"unsupported argument type {arg_type!r}")
-    if text[type_end] != ",":
-        raise ICUError(f"{arg_type} without options")
-
-    pos, keys = type_end + 1, set()
-    while True:
-        while pos < len(text) and text[pos].isspace():
-            pos += 1
-        if pos >= len(text):
-            raise ICUError("missing '}'")
-        if text[pos] == "}":
-            break
-        key_end = _find(text, pos, "{")
-        key = text[pos:key_end].strip()
-        if not key or " " in key:
-            raise ICUError(f"bad option key {key!r}")
-        if arg_type != "select" and key not in PLURAL_FORMS and not key.startswith("="):
-            raise ICUError(f"unknown plural form {key!r}")
-        keys.add(key)
-        pos = _message(text, key_end + 1, names) + 1
-    if "other" not in keys:
-        raise ICUError(f"{arg_type} for {name!r} has no 'other'")
-    return pos + 1
-
-
-def _find(text: str, pos: int, chars: str) -> int:
-    while pos < len(text) and text[pos] not in chars:
-        pos += 1
-    if pos >= len(text):
-        raise ICUError("missing '}'")
-    return pos
 
 
 def flatten(data: dict[str, Any], prefix: str = "") -> dict[str, str]:
@@ -111,32 +55,39 @@ def flatten(data: dict[str, Any], prefix: str = "") -> dict[str, str]:
     return flat
 
 
-def test_parser_catches_mistakes() -> None:
-    """Sanity-check the parser itself."""
-    assert placeholders("{a} of {b, plural, one {# x} other {# xs}}") == {"a", "b"}
-    assert placeholders("{s, select, yes {Error: {r}} other {}}") == {"s", "r"}
-    for broken in ("{a", "a}", "{n, plural, one {x}}", "{n, plural, few {x} other {y}"):
-        with pytest.raises(ICUError):
-            placeholders(broken)
+def load(language: str) -> dict[str, str]:
+    return flatten(
+        json.loads((TRANSLATIONS / f"{language}.json").read_text(encoding="utf-8"))
+    )
+
+
+def test_rule_catches_icu_plurals() -> None:
+    """Hassfest rejects ICU plural/select; so does our check."""
+    assert placeholders("{bad} of {total}") == {"bad", "total"}
+    with pytest.raises(ValueError):
+        placeholders("{total, plural, one {# entity} other {# entities}}")
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
-def test_strings_are_valid_icu(language: str) -> None:
-    """Every string parses, and plurals/selects have an 'other' case."""
-    data = json.loads((TRANSLATIONS / f"{language}.json").read_text(encoding="utf-8"))
-    for path, text in flatten(data).items():
+def test_strings_pass_hassfest_rules(language: str) -> None:
+    """Every string would pass Hassfest."""
+    for path, text in load(language).items():
+        where = f"{language}: {path}"
         try:
             placeholders(text)
-        except ICUError as err:
-            pytest.fail(f"{language}: {path}: {err}")
+        except ValueError as err:
+            pytest.fail(f"{where}: {err}")
+        assert not RE_PLACEHOLDER_IN_SINGLE_QUOTES.search(text), f"{where}: '{{x}}'"
+        assert not RE_HTML.search(text), f"{where}: HTML"
+        assert not RE_URL.search(text), f"{where}: URL (use a placeholder)"
+        assert text == text.strip(), f"{where}: leading or trailing spaces"
 
 
 @pytest.mark.parametrize("language", [lang for lang in LANGUAGES if lang != "en"])
 def test_language_matches_english(language: str) -> None:
     """No unknown keys, and the same placeholders as English."""
     english = flatten(EN)
-    data = json.loads((TRANSLATIONS / f"{language}.json").read_text(encoding="utf-8"))
-    for path, text in flatten(data).items():
+    for path, text in load(language).items():
         assert path in english, f"{language}: {path} does not exist in en.json"
         assert placeholders(text) == placeholders(english[path]), (
             f"{language}: {path} uses different placeholders than English"

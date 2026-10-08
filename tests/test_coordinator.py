@@ -130,7 +130,7 @@ async def test_failed_entry_without_entities(
     entry = add_integration(hass, "broken", [], state=ConfigEntryState.SETUP_RETRY)
     problem = coordinator.scan().problems[entry.entry_id]
     assert problem.detail == "setup_retry"
-    assert problem.issue_key == "entry_failed"
+    assert problem.issue_key == "entry_retrying"
     assert problem.total == 0
 
 
@@ -309,8 +309,7 @@ async def test_issue_keys_and_plain_placeholders(
     issue_reg = ir.async_get(hass)
     failed_issue = issue_reg.async_get_issue(DOMAIN, f"entry_{failed.entry_id}")
     quiet_issue = issue_reg.async_get_issue(DOMAIN, f"entry_{quiet.entry_id}")
-    assert failed_issue.translation_key == "entry_failed"
-    assert failed_issue.translation_placeholders["state"] == "setup_retry"
-    assert failed_issue.translation_placeholders["has_reason"] == "no"
+    assert failed_issue.translation_key == "entry_retrying"
+    assert failed_issue.translation_placeholders["reason"] == "—"
     assert quiet_issue.translation_key == "entry_unavailable"
     assert quiet_issue.translation_placeholders["bad"] == "1"
