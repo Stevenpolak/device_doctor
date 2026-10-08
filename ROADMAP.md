@@ -3,7 +3,7 @@
 Order: first make Device Doctor complete and operational, then get it into
 the HACS default store, then translate.
 
-## 1. Features and operation: v0.5.0
+## 1. Features and operation: v0.5.0 (released)
 
 Released first as beta `v0.5.0b1` (pre-release; enable *Show beta versions*
 for Device Doctor in HACS), then as `v0.5.0`.
@@ -84,9 +84,9 @@ The texts are already prepared for translation (no English in the code,
 labelled facts instead of plural grammar, `tests/test_translations.py`
 applies Hassfest's rules to every language file). What remains:
 
-- [ ] Dutch first, reviewed by Steven; then de, fr, es, it, pt-BR, pl, sv, da,
-      nb, cs
+- [x] Dutch (in 0.5.0; review by Steven welcome)
+- [ ] Then de, fr, es, it, pt-BR, pl, sv, da, nb, cs
 - [ ] Use Home Assistant's own UI translations as glossary for menu names and
       tone
-- [ ] README section "Translations": how to correct or add a language
+- [x] README section "Languages": how to correct or add a language
 - [ ] Only if many contributors show up: Crowdin or Hosted Weblate

@@ -1,0 +1,381 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Device Doctor",
+        "description": "Device Doctor controleert regelmatig alle integraties en apparaten en meldt een reparatie als een integratie niet werkt, of als de meeste entiteiten van een integratie of hub-apparaat onbeschikbaar blijven. De standaardinstellingen werken voor de meeste installaties; je kunt alles later aanpassen via Configureren.",
+        "sections": {
+          "scanning": {
+            "name": "Scannen",
+            "description": "Hoe vaak er gekeken wordt, en wanneer iets als kapot telt.",
+            "data": {
+              "scan_interval": "Scaninterval",
+              "confirmations": "Bevestigingen",
+              "threshold": "Drempel voor onbeschikbaar"
+            },
+            "data_description": {
+              "scan_interval": "Hoe vaak er gescand wordt.",
+              "confirmations": "Hoeveel scans achter elkaar iets kapot moet lijken voordat er een reparatie verschijnt. Met 2 vallen herstarts en korte haperingen weg.",
+              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is."
+            }
+          },
+          "exclusions": {
+            "name": "Uitzonderingen",
+            "description": "Integratietypes die nooit worden gecontroleerd. Wil je één integratie of apparaat negeren of tijdelijk offline toestaan, gebruik dan het menu van een reparatie of voeg een regel toe op de pagina van Device Doctor.",
+            "data": {
+              "skip_domains": "Genegeerde integratietypes"
+            },
+            "data_description": {
+              "skip_domains": "Zoals helpers die alleen andere entiteiten weerspiegelen."
+            }
+          },
+          "advanced": {
+            "name": "Geavanceerd",
+            "description": "De standaardinstellingen passen bij de meeste installaties.",
+            "data": {
+              "hub_domains": "Hub-integraties (per apparaat gecontroleerd)",
+              "skip_entity_domains": "Genegeerde entiteittypes",
+              "count_unknown": "'Onbekend' tellen als onbeschikbaar"
+            },
+            "data_description": {
+              "hub_domains": "Integraties met één item voor veel apparaten (Zigbee, Z-Wave, MQTT). Elk apparaat wordt apart beoordeeld.",
+              "skip_entity_domains": "Entiteittypes die normaal op 'onbekend' staan tot ze gebruikt worden, zoals knoppen en scènes.",
+              "count_unknown": "Sommige integraties melden 'onbekend' in plaats van 'onbeschikbaar' als de verbinding wegvalt."
+            }
+          }
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Device Doctor is al ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opties van Device Doctor",
+        "sections": {
+          "scanning": {
+            "name": "Scannen",
+            "description": "Hoe vaak er gekeken wordt, en wanneer iets als kapot telt.",
+            "data": {
+              "scan_interval": "Scaninterval",
+              "confirmations": "Bevestigingen",
+              "threshold": "Drempel voor onbeschikbaar"
+            },
+            "data_description": {
+              "scan_interval": "Hoe vaak er gescand wordt.",
+              "confirmations": "Hoeveel scans achter elkaar iets kapot moet lijken voordat er een reparatie verschijnt. Met 2 vallen herstarts en korte haperingen weg.",
+              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is."
+            }
+          },
+          "exclusions": {
+            "name": "Uitzonderingen",
+            "description": "Integratietypes die nooit worden gecontroleerd. Wil je één integratie of apparaat negeren of tijdelijk offline toestaan, gebruik dan het menu van een reparatie of voeg een regel toe op de pagina van Device Doctor.",
+            "data": {
+              "skip_domains": "Genegeerde integratietypes"
+            },
+            "data_description": {
+              "skip_domains": "Zoals helpers die alleen andere entiteiten weerspiegelen."
+            }
+          },
+          "advanced": {
+            "name": "Geavanceerd",
+            "description": "De standaardinstellingen passen bij de meeste installaties.",
+            "data": {
+              "hub_domains": "Hub-integraties (per apparaat gecontroleerd)",
+              "skip_entity_domains": "Genegeerde entiteittypes",
+              "count_unknown": "'Onbekend' tellen als onbeschikbaar"
+            },
+            "data_description": {
+              "hub_domains": "Integraties met één item voor veel apparaten (Zigbee, Z-Wave, MQTT). Elk apparaat wordt apart beoordeeld.",
+              "skip_entity_domains": "Entiteittypes die normaal op 'onbekend' staan tot ze gebruikt worden, zoals knoppen en scènes.",
+              "count_unknown": "Sommige integraties melden 'onbekend' in plaats van 'onbeschikbaar' als de verbinding wegvalt."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "problems": {
+        "name": "Problemen"
+      },
+      "faults_total": {
+        "name": "Gevonden storingen"
+      },
+      "skipped_entities": {
+        "name": "Overgeslagen entiteiten",
+        "state_attributes": {
+          "ignored_integrations": {
+            "name": "Genegeerde integratietypes"
+          },
+          "ignored_entries": {
+            "name": "Genegeerde integraties"
+          },
+          "ignored_devices": {
+            "name": "Genegeerde apparaten"
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Probleem gedetecteerd"
+      }
+    },
+    "button": {
+      "scan_now": {
+        "name": "Nu scannen"
+      }
+    }
+  },
+  "issues": {
+    "entry_retrying": {
+      "title": "{title} ({domain}) start steeds niet",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) start steeds niet",
+            "description": "{title} probeert steeds te starten, maar dat mislukt elke keer.\n\n- Laatste fout: {reason}\n- Offline sinds: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Herladen** lost dit soms op, bijvoorbeeld na een netwerkprobleem.\n\n**Tijdelijk offline toestaan** als het af en toe uit staat, zoals een tv of een omvormer van zonnepanelen 's nachts. Als het deze week een paar keer vanzelf terugkwam, is dat waarschijnlijk het geval. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de integratiepagina]({link})",
+            "menu_options": {
+              "reload": "Integratie herladen",
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    },
+    "entry_failed": {
+      "title": "{title} ({domain}) is niet gestart",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) is niet gestart",
+            "description": "{title} is niet gestart.\n\n- Laatste fout: {reason}\n- Offline sinds: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Herladen** lost dit soms op, bijvoorbeeld na een netwerkprobleem.\n\n**Tijdelijk offline toestaan** als het af en toe uit staat, zoals een tv of een omvormer van zonnepanelen 's nachts. Als het deze week een paar keer vanzelf terugkwam, is dat waarschijnlijk het geval. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de integratiepagina]({link})",
+            "menu_options": {
+              "reload": "Integratie herladen",
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    },
+    "entry_unavailable": {
+      "title": "{title} ({domain}) werkt niet",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) werkt niet",
+            "description": "{title} draait, maar de meeste entiteiten zijn onbeschikbaar.\n\n- Onbeschikbare entiteiten: {bad} van {total}\n- Offline sinds: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Herladen** herstelt vaak een verbinding die ongemerkt is weggevallen.\n\n**Tijdelijk offline toestaan** als het af en toe uit staat, zoals een tv of een omvormer van zonnepanelen 's nachts. Als het deze week een paar keer vanzelf terugkwam, is dat waarschijnlijk het geval. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de integratiepagina]({link})",
+            "menu_options": {
+              "reload": "Integratie herladen",
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    },
+    "device_problem": {
+      "title": "{title} is onbeschikbaar",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} is onbeschikbaar",
+            "description": "Dit {domain}-apparaat geeft geen gegevens meer door. Misschien is de batterij leeg, is het buiten bereik of heeft het geen stroom. Deze reparatie verdwijnt vanzelf zodra het apparaat weer gegevens doorgeeft.\n\n- Onbeschikbare entiteiten: {bad} van {total}\n- Offline sinds: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Tijdelijk offline toestaan** als het af en toe uit staat, zoals een tv of een omvormer van zonnepanelen 's nachts. Als het deze week een paar keer vanzelf terugkwam, is dat waarschijnlijk het geval. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de apparaatpagina]({link})",
+            "menu_options": {
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    }
+  },
+  "services": {
+    "reload_problems": {
+      "name": "Probleemintegraties herladen",
+      "description": "Herlaadt elke integratie die Device Doctor op dit moment als niet werkend meldt. Apparaten achter een hub worden niet herladen."
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Device Doctor draait niet."
+    }
+  },
+  "config_subentries": {
+    "ignored": {
+      "entry_type": "Genegeerd",
+      "initiate_flow": {
+        "user": "Negeren"
+      },
+      "step": {
+        "user": {
+          "title": "Wat moet er genegeerd worden?",
+          "description": "Genegeerde apparaten en integraties worden nooit gecontroleerd. Staat iets alleen af en toe uit, sta het dan liever tijdelijk offline toe.",
+          "menu_options": {
+            "device": "Een apparaat op een hub (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "Een integratie"
+          }
+        },
+        "device": {
+          "title": "Een apparaat negeren",
+          "data": {
+            "device": "Apparaat"
+          }
+        },
+        "entry": {
+          "title": "Een integratie negeren",
+          "data": {
+            "entry": "Integratie"
+          }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "{title} wordt genegeerd: Device Doctor controleert het nooit.\n\n[Open de pagina]({link})",
+          "menu_options": {
+            "allow_offline": "In plaats daarvan tijdelijk offline toestaan",
+            "remove": "Niet meer negeren"
+          }
+        },
+        "allow_offline": {
+          "title": "{title} offline toestaan",
+          "data": {
+            "allowed_offline": "Mag offline zijn voor"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor meldt het pas als het langer dan dit offline is."
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "Hiervoor bestaat al een regel. Pas die aan of verwijder die op de pagina van Device Doctor.",
+        "changed": "De regel is aangepast.",
+        "removed": "De regel is verwijderd. Het wordt weer normaal gecontroleerd."
+      }
+    },
+    "allowed_offline": {
+      "entry_type": "Offline toegestaan",
+      "initiate_flow": {
+        "user": "Offline toestaan"
+      },
+      "step": {
+        "user": {
+          "title": "Wat mag tijdelijk offline zijn?",
+          "description": "Voor dingen die af en toe uit staan, zoals een tv, een soldeerbout of een omvormer van zonnepanelen 's nachts. Device Doctor laat het je nog steeds weten als ze niet terugkomen.",
+          "menu_options": {
+            "device": "Een apparaat op een hub (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "Een integratie"
+          }
+        },
+        "device": {
+          "title": "Een apparaat offline toestaan",
+          "data": {
+            "device": "Apparaat",
+            "allowed_offline": "Mag offline zijn voor"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor meldt het pas als het langer dan dit offline is."
+          }
+        },
+        "entry": {
+          "title": "Een integratie offline toestaan",
+          "data": {
+            "entry": "Integratie",
+            "allowed_offline": "Mag offline zijn voor"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor meldt het pas als het langer dan dit offline is."
+          }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "{title} mag {duration} offline zijn voordat Device Doctor het meldt.\n\n[Open de pagina]({link})",
+          "menu_options": {
+            "duration": "Duur aanpassen",
+            "ignore": "In plaats daarvan negeren",
+            "remove": "Niet meer offline toestaan"
+          }
+        },
+        "duration": {
+          "title": "Aanpassen hoe lang {title} offline mag zijn",
+          "description": "Hoe lang mag {title} offline zijn voordat Device Doctor het meldt?",
+          "data": {
+            "allowed_offline": "Mag offline zijn voor"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor meldt het pas als het langer dan dit offline is."
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "Hiervoor bestaat al een regel. Pas die aan of verwijder die op de pagina van Device Doctor.",
+        "reconfigure_successful": "De regel is bijgewerkt.",
+        "changed": "De regel is aangepast.",
+        "removed": "De regel is verwijderd. Het wordt weer normaal gecontroleerd."
+      }
+    }
+  },
+  "selector": {
+    "allowed_offline": {
+      "options": {
+        "1d": "1 dag",
+        "3d": "3 dagen",
+        "7d": "1 week",
+        "30d": "30 dagen"
+      }
+    }
+  }
+}
