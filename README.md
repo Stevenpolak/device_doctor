@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="custom_components/device_doctor/brand/icon@2x.png" width="128" alt="Device Doctor logo: a white heart with a pulse line on a blue background" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="custom_components/device_doctor/brand/dark_logo@2x.png" />
+    <img src="custom_components/device_doctor/brand/logo@2x.png" width="420" alt="Device Doctor" />
+  </picture>
 </p>
-
-<h1 align="center">Device Doctor</h1>
 
 <p align="center">Finds dead devices and silently failing integrations in Home Assistant.</p>
 
