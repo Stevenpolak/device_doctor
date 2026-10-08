@@ -21,7 +21,7 @@
           },
           "exclusions": {
             "name": "Exclusions",
-            "description": "Integration types that are never checked. To let a single integration or device be offline, use a repair's menu or add an allowed offline rule on the Device Doctor page.",
+            "description": "Integration types that are never checked. To ignore a single integration or device, or allow it offline for a while, use a repair's menu or add a rule on the Device Doctor page.",
             "data": {
               "skip_domains": "Ignored integration types"
             },
@@ -71,7 +71,7 @@
           },
           "exclusions": {
             "name": "Exclusions",
-            "description": "Integration types that are never checked. To let a single integration or device be offline, use a repair's menu or add an allowed offline rule on the Device Doctor page.",
+            "description": "Integration types that are never checked. To ignore a single integration or device, or allow it offline for a while, use a repair's menu or add a rule on the Device Doctor page.",
             "data": {
               "skip_domains": "Ignored integration types"
             },
@@ -147,7 +147,7 @@
           },
           "allow_offline": {
             "title": "Allow {title} to be offline",
-            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
             "data": {
               "allowed_offline": "May be offline for"
             }
@@ -175,7 +175,7 @@
           },
           "allow_offline": {
             "title": "Allow {title} to be offline",
-            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
             "data": {
               "allowed_offline": "May be offline for"
             }
@@ -203,7 +203,7 @@
           },
           "allow_offline": {
             "title": "Allow {title} to be offline",
-            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
             "data": {
               "allowed_offline": "May be offline for"
             }
@@ -230,7 +230,7 @@
           },
           "allow_offline": {
             "title": "Allow {title} to be offline",
-            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or remove this rule on the Device Doctor page.",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
             "data": {
               "allowed_offline": "May be offline for"
             }
@@ -256,38 +256,69 @@
     }
   },
   "config_subentries": {
-    "allowed_offline": {
-      "entry_type": "Allowed offline rule",
+    "ignored": {
+      "entry_type": "Ignored",
       "initiate_flow": {
-        "user": "Add allowed offline rule"
+        "user": "Ignore a device or integration"
       },
       "step": {
         "user": {
-          "title": "What may be offline?",
-          "description": "For things that are switched off now and then, such as a TV, a soldering iron or a solar inverter at night.",
+          "title": "What should be ignored?",
+          "description": "Ignored devices and integrations are never checked. For things that are only switched off now and then, allow them offline for a while instead.",
           "menu_options": {
             "device": "A device on a hub (Zigbee, Z-Wave, MQTT, …)",
             "entry": "An integration"
           }
         },
         "device": {
-          "title": "Allow a device to be offline",
+          "title": "Ignore a device",
+          "data": {
+            "device": "Device"
+          }
+        },
+        "entry": {
+          "title": "Ignore an integration",
+          "data": {
+            "entry": "Integration"
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "There is already a rule for this. Change or delete it on the Device Doctor page."
+      }
+    },
+    "allowed_offline": {
+      "entry_type": "Allowed offline",
+      "initiate_flow": {
+        "user": "Allow a device or integration offline"
+      },
+      "step": {
+        "user": {
+          "title": "What may be offline for a while?",
+          "description": "For things that are switched off now and then, such as a TV, a soldering iron or a solar inverter at night. Device Doctor still tells you when they don't come back.",
+          "menu_options": {
+            "device": "A device on a hub (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "An integration"
+          }
+        },
+        "device": {
+          "title": "Allow a device offline",
           "data": {
             "device": "Device",
             "allowed_offline": "May be offline for"
           },
           "data_description": {
-            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this."
           }
         },
         "entry": {
-          "title": "Allow an integration to be offline",
+          "title": "Allow an integration offline",
           "data": {
             "entry": "Integration",
             "allowed_offline": "May be offline for"
           },
           "data_description": {
-            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this."
           }
         },
         "reconfigure": {
@@ -297,12 +328,12 @@
             "allowed_offline": "May be offline for"
           },
           "data_description": {
-            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this. 'Always' means it is never checked."
+            "allowed_offline": "Device Doctor only reports it once it has been offline for longer than this."
           }
         }
       },
       "abort": {
-        "already_configured": "There is already a rule for this. Change it on the Device Doctor page.",
+        "already_configured": "There is already a rule for this. Change or delete it on the Device Doctor page.",
         "reconfigure_successful": "The rule was updated."
       }
     }
@@ -313,8 +344,7 @@
         "1d": "1 day",
         "3d": "3 days",
         "7d": "1 week",
-        "30d": "30 days",
-        "always": "Always (ignore)"
+        "30d": "30 days"
       }
     }
   }

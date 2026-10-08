@@ -15,8 +15,8 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from .const import (
-    ALWAYS,
     DOMAIN,
+    IGNORE,
     KIND_ENTRY,
     RETURNS_HINT,
     RULE_ALLOWED_OFFLINE,
@@ -96,7 +96,7 @@ class DeviceDoctorRepairFlow(RepairsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(RULE_ALLOWED_OFFLINE, default="1d"): (
-                        allowed_offline_selector(include_always=False)
+                        allowed_offline_selector()
                     )
                 }
             ),
@@ -106,8 +106,8 @@ class DeviceDoctorRepairFlow(RepairsFlow):
     async def async_step_ignore(
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:
-        """Save an "always allowed offline" rule, i.e. stop checking it."""
-        return await self._save_rule(ALWAYS)
+        """Save an "ignored" rule: stop checking it."""
+        return await self._save_rule(IGNORE)
 
     async def _save_rule(self, allowed: str) -> data_entry_flow.FlowResult:
         if (doctor := _loaded_doctor(self.hass)) is None:

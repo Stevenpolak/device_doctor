@@ -28,7 +28,6 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.device_doctor.config_flow import build_schema
 from custom_components.device_doctor.const import (
-    ALWAYS,
     CONF_CONFIRMATIONS,
     CONF_SKIP_DOMAINS,
     CONF_THRESHOLD,
@@ -152,7 +151,9 @@ def _mock_p1(
 
 def _rules(doctor: MockConfigEntry) -> dict[tuple[str, str], str]:
     return {
-        (sub.data["target_kind"], sub.data["target_id"]): sub.data["allowed_offline"]
+        (sub.data["target_kind"], sub.data["target_id"]): sub.data.get(
+            "allowed_offline", sub.subentry_type
+        )
         for sub in doctor.subentries.values()
     }
 
@@ -223,7 +224,7 @@ async def test_fix_flow_ignores_entry(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert _rules(doctor) == {("entry", "p1_entry"): ALWAYS}
+    assert _rules(doctor) == {("entry", "p1_entry"): "ignored"}
     # The options change reloaded Device Doctor.
     assert doctor.state is ConfigEntryState.LOADED
 
@@ -241,7 +242,7 @@ async def test_fix_flow_ignores_device(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert _rules(doctor) == {("device", "leak_sensor"): ALWAYS}
+    assert _rules(doctor) == {("device", "leak_sensor"): "ignored"}
 
 
 async def test_fix_flow_ignore_needs_doctor(hass: HomeAssistant) -> None:

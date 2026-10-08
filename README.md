@@ -65,11 +65,12 @@ The repair also tells you how long it has been offline and links to the device
 or integration page. If something keeps coming back on its own, the repair
 says so and suggests *Allow offline* first.
 
-**Your rules** (both *Allow offline* and *Ignore*) are listed on the Device
-Doctor page under **Settings → Devices & services → Device Doctor**, for
-example *Leak sensor (Hallway) · 1 week*. Click one to change how long it may
-be offline, delete it to undo, or use **Add allowed offline rule** to add one
-without waiting for a repair.
+**Your rules** are listed on the Device Doctor page under **Settings → Devices
+& services → Device Doctor**, each marked *Ignored* or *Allowed offline*, for
+example *Leak sensor (Hallway)* or *Growatt inverter (growatt_server) · 1 day*.
+Click an *Allowed offline* rule to change how long it may be offline, delete
+any rule to undo it, or use **Ignore a device or integration** / **Allow a
+device or integration offline** to add one without waiting for a repair.
 
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:
@@ -208,6 +209,11 @@ Device Doctor can't know it's allowed to be off. Click its repair and choose
 A device is only flagged when more than half of its checked sensors are
 unavailable. Disabled sensors, buttons and scenes don't count. You can change
 the threshold under **Configure → Scanning**.
+
+**After updating, a repair shows "Translation … MISSING_VALUE" or raw labels like `allow_offline`?**
+Your browser still has the texts of the previous version. Reload the page
+with Ctrl+Shift+R (Cmd+Shift+R on a Mac), or fully close and reopen the
+companion app.
 
 **Which Zigbee integrations are checked?**
 All the common ones, device by device:

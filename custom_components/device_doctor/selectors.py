@@ -8,18 +8,14 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .const import ALLOWED_OFFLINE_SECONDS, ALWAYS
+from .const import ALLOWED_OFFLINE_SECONDS
 
 
-def allowed_offline_selector(include_always: bool = True) -> SelectSelector:
+def allowed_offline_selector() -> SelectSelector:
     """Pick how long something may be offline (labels in translations)."""
     return SelectSelector(
         SelectSelectorConfig(
-            options=[
-                key
-                for key in ALLOWED_OFFLINE_SECONDS
-                if include_always or key != ALWAYS
-            ],
+            options=list(ALLOWED_OFFLINE_SECONDS),
             translation_key="allowed_offline",
             mode=SelectSelectorMode.LIST,
         )

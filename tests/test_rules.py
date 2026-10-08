@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from datetime import timedelta
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import SOURCE_USER
+from homeassistant.config_entries import SOURCE_USER, ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -18,13 +18,13 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.device_doctor.const import (
-    ALWAYS,
     CONF_IGNORED_DEVICES,
     CONF_IGNORED_ENTRIES,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PROBLEM,
     EVENT_RECOVERED,
+    IGNORE,
     KIND_DEVICE,
     KIND_ENTRY,
     SUBENTRY_ALLOWED_OFFLINE,
@@ -189,7 +189,7 @@ async def test_ignoring_is_not_a_recovery(
     await coordinator.async_refresh()
     await coordinator.async_refresh()
     await async_set_rule(
-        hass, coordinator.config_entry, KIND_ENTRY, p1.entry_id, ALWAYS
+        hass, coordinator.config_entry, KIND_ENTRY, p1.entry_id, IGNORE
     )
     await coordinator.async_refresh()
     assert not coordinator.data.confirmed
@@ -273,16 +273,16 @@ async def test_rule_flow_add_duplicate_and_change(hass: HomeAssistant) -> None:
         context={"source": "reconfigure", "subentry_id": subentry.subentry_id},
     )
     result = await manager.async_configure(
-        result["flow_id"], {"allowed_offline": ALWAYS}
+        result["flow_id"], {"allowed_offline": "30d"}
     )
     await hass.async_block_till_done()
     assert result["reason"] == "reconfigure_successful"
-    assert async_get_rules(doctor)[KIND_ENTRY, tv.entry_id].always
-    assert doctor.subentries[subentry.subentry_id].title.endswith("· Always (ignore)")
+    assert async_get_rules(doctor)[KIND_ENTRY, tv.entry_id].seconds == 30 * 86400
+    assert doctor.subentries[subentry.subentry_id].title.endswith("· 30 days")
 
 
 async def test_migrates_0_4_ignore_lists(hass: HomeAssistant) -> None:
-    """Ignored entries and devices from 0.4 become 'always' rules."""
+    """Ignored entries and devices from 0.4 become ignored rules."""
     doctor = MockConfigEntry(
         domain=DOMAIN,
         version=1,
@@ -297,11 +297,12 @@ async def test_migrates_0_4_ignore_lists(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(doctor.entry_id)
     await hass.async_block_till_done()
 
-    assert doctor.minor_version == 2
+    assert doctor.minor_version == 3
     assert CONF_IGNORED_ENTRIES not in doctor.options
     rules = async_get_rules(doctor)
-    assert rules[KIND_ENTRY, "tv_entry"].always
-    assert rules[KIND_DEVICE, "leak_sensor"].always
+    assert rules[KIND_ENTRY, "tv_entry"].ignored
+    assert rules[KIND_DEVICE, "leak_sensor"].ignored
+    assert {sub.subentry_type for sub in doctor.subentries.values()} == {"ignored"}
 
 
 async def test_device_rule_title_has_area_and_follows_renames(
@@ -332,3 +333,86 @@ async def test_device_rule_title_has_area_and_follows_renames(
     )
     # A new title alone doesn't reload Device Doctor.
     assert doctor.runtime_data is coordinator
+
+
+async def test_migrates_0_5_0b1_always_rules(hass: HomeAssistant) -> None:
+    """b1's 'allowed offline: always' rules become ignored rules."""
+    doctor = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        minor_version=2,
+        options=dict(DEFAULT_OPTIONS),
+        subentries_data=[
+            ConfigSubentryData(
+                data={
+                    "target_kind": "entry",
+                    "target_id": "tv",
+                    "allowed_offline": "always",
+                },
+                subentry_type="allowed_offline",
+                title="TV",
+                unique_id="entry_tv",
+            ),
+            ConfigSubentryData(
+                data={
+                    "target_kind": "entry",
+                    "target_id": "solar",
+                    "allowed_offline": "1d",
+                },
+                subentry_type="allowed_offline",
+                title="Solar",
+                unique_id="entry_solar",
+            ),
+        ],
+    )
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    await hass.async_block_till_done()
+
+    assert doctor.minor_version == 3
+    types = {sub.unique_id: sub.subentry_type for sub in doctor.subentries.values()}
+    assert types == {"entry_tv": "ignored", "entry_solar": "allowed_offline"}
+    assert async_get_rules(doctor)[KIND_ENTRY, "solar"].seconds == 86400
+
+
+async def test_ignore_flow_and_one_rule_per_target(hass: HomeAssistant) -> None:
+    """Ignoring from the page; a target can't get a second rule of the other type."""
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(doctor.entry_id)
+    await hass.async_block_till_done()
+    tv = add_integration(hass, "androidtv_remote", ["on"])
+    manager = hass.config_entries.subentries
+
+    async def add(subentry_type: str, user_input: dict) -> dict:
+        result = await manager.async_init(
+            (doctor.entry_id, subentry_type), context={"source": SOURCE_USER}
+        )
+        result = await manager.async_configure(
+            result["flow_id"], {"next_step_id": "entry"}
+        )
+        return await manager.async_configure(result["flow_id"], user_input)
+
+    result = await add("ignored", {"entry": tv.entry_id})
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    (subentry,) = doctor.subentries.values()
+    assert subentry.title == "androidtv_remote (androidtv_remote)"
+    assert async_get_rules(doctor)[KIND_ENTRY, tv.entry_id].ignored
+
+    result = await add(
+        "allowed_offline", {"entry": tv.entry_id, "allowed_offline": "1d"}
+    )
+    assert result["reason"] == "already_configured"
+
+
+async def test_set_rule_switches_type(hass: HomeAssistant) -> None:
+    """Allowing offline after ignoring replaces the rule instead of adding one."""
+    doctor = MockConfigEntry(domain=DOMAIN, options=dict(DEFAULT_OPTIONS))
+    doctor.add_to_hass(hass)
+    await async_set_rule(hass, doctor, KIND_ENTRY, "tv", IGNORE)
+    await async_set_rule(hass, doctor, KIND_ENTRY, "tv", "7d")
+
+    (subentry,) = doctor.subentries.values()
+    assert subentry.subentry_type == "allowed_offline"
+    assert subentry.title == "tv · 1 week"

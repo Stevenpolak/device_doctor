@@ -10,12 +10,16 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
-    ALWAYS,
     CONF_IGNORED_DEVICES,
     CONF_IGNORED_ENTRIES,
     DOMAIN,
+    IGNORE,
     KIND_DEVICE,
     KIND_ENTRY,
+    RULE_ALLOWED_OFFLINE,
+    RULE_TARGET_ID,
+    RULE_TARGET_KIND,
+    SUBENTRY_ALLOWED_OFFLINE,
 )
 from .coordinator import DeviceDoctorConfigEntry, DeviceDoctorCoordinator
 from .rules import async_set_rule
@@ -34,7 +38,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_migrate_entry(
     hass: HomeAssistant, entry: DeviceDoctorConfigEntry
 ) -> bool:
-    """Move 0.4's ignored entries and devices into "always" rules."""
+    """Bring older entries up to date.
+
+    1.2: 0.4's ignored entries and devices become ignored rules.
+    1.3: 0.5.0b1's "allowed offline: always" rules become ignored rules.
+    """
     if entry.version == 1 and entry.minor_version < 2:
         options = dict(entry.options)
         for kind, key in (
@@ -42,8 +50,22 @@ async def async_migrate_entry(
             (KIND_DEVICE, CONF_IGNORED_DEVICES),
         ):
             for target_id in options.pop(key, []):
-                await async_set_rule(hass, entry, kind, target_id, ALWAYS)
+                await async_set_rule(hass, entry, kind, target_id, IGNORE)
         hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    if entry.version == 1 and entry.minor_version < 3:
+        for subentry in list(entry.subentries.values()):
+            if (
+                subentry.subentry_type == SUBENTRY_ALLOWED_OFFLINE
+                and subentry.data.get(RULE_ALLOWED_OFFLINE) == "always"
+            ):
+                await async_set_rule(
+                    hass,
+                    entry,
+                    subentry.data[RULE_TARGET_KIND],
+                    subentry.data[RULE_TARGET_ID],
+                    IGNORE,
+                )
+        hass.config_entries.async_update_entry(entry, minor_version=3)
     return True
 
 

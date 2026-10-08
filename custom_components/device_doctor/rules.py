@@ -1,7 +1,8 @@
-"""Allowed-offline rules, stored as config subentries of the Device Doctor entry.
+"""Rules for single integrations and devices, stored as config subentries.
 
-A rule says how long one integration entry or one device may be offline before
-Device Doctor raises a repair. The duration "always" is what "Ignore" does.
+Two kinds, each its own subentry type so the Device Doctor page labels them:
+- "ignored": never checked (what Ignore on a repair does);
+- "allowed offline": only reported once offline for longer than a duration.
 """
 
 from __future__ import annotations
@@ -17,12 +18,16 @@ from homeassistant.helpers.translation import async_get_translations
 from .const import (
     ALLOWED_OFFLINE_SECONDS,
     DOMAIN,
+    IGNORE,
     KIND_DEVICE,
     RULE_ALLOWED_OFFLINE,
     RULE_TARGET_ID,
     RULE_TARGET_KIND,
     SUBENTRY_ALLOWED_OFFLINE,
+    SUBENTRY_IGNORED,
 )
+
+RULE_TYPES = (SUBENTRY_IGNORED, SUBENTRY_ALLOWED_OFFLINE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,11 +36,11 @@ class Rule:
 
     kind: str
     target_id: str
-    seconds: int | None  # None: always allowed, i.e. ignored
+    seconds: int | None  # None: ignored, never checked
 
     @property
-    def always(self) -> bool:
-        """Return True for an ignore rule."""
+    def ignored(self) -> bool:
+        """Return True for an ignored rule."""
         return self.seconds is None
 
 
@@ -49,24 +54,42 @@ def async_get_rules(entry: ConfigEntry) -> dict[tuple[str, str], Rule]:
     """Return the rules of the Device Doctor entry, keyed by (kind, target id)."""
     rules: dict[tuple[str, str], Rule] = {}
     for subentry in entry.subentries.values():
-        if subentry.subentry_type != SUBENTRY_ALLOWED_OFFLINE:
-            continue
-        allowed = subentry.data.get(RULE_ALLOWED_OFFLINE)
-        if allowed not in ALLOWED_OFFLINE_SECONDS:
+        if subentry.subentry_type == SUBENTRY_IGNORED:
+            seconds = None
+        elif subentry.subentry_type == SUBENTRY_ALLOWED_OFFLINE:
+            allowed = subentry.data.get(RULE_ALLOWED_OFFLINE)
+            if allowed not in ALLOWED_OFFLINE_SECONDS:
+                continue
+            seconds = ALLOWED_OFFLINE_SECONDS[allowed]
+        else:
             continue
         kind, target_id = subentry.data[RULE_TARGET_KIND], subentry.data[RULE_TARGET_ID]
-        rules[kind, target_id] = Rule(kind, target_id, ALLOWED_OFFLINE_SECONDS[allowed])
+        rules[kind, target_id] = Rule(kind, target_id, seconds)
     return rules
 
 
-# Used when the translations can't be loaded; same as translations/en.json.
-DURATION_FALLBACK = {
-    "1d": "1 day",
-    "3d": "3 days",
-    "7d": "1 week",
-    "30d": "30 days",
-    "always": "Always (ignore)",
-}
+@callback
+def async_find_rule(
+    entry: ConfigEntry, kind: str, target_id: str
+) -> ConfigSubentry | None:
+    """Return the rule subentry for a target, of either type."""
+    unique_id = rule_unique_id(kind, target_id)
+    return next(
+        (
+            subentry
+            for subentry in entry.subentries.values()
+            if subentry.subentry_type in RULE_TYPES and subentry.unique_id == unique_id
+        ),
+        None,
+    )
+
+
+def rule_data(kind: str, target_id: str, allowed: str) -> dict[str, str]:
+    """Return the subentry data for a rule; ignored rules have no duration."""
+    data = {RULE_TARGET_KIND: kind, RULE_TARGET_ID: target_id}
+    if allowed != IGNORE:
+        data[RULE_ALLOWED_OFFLINE] = allowed
+    return data
 
 
 async def async_set_rule(
@@ -76,30 +99,27 @@ async def async_set_rule(
     target_id: str,
     allowed: str,
 ) -> None:
-    """Add a rule, or change the duration of the existing rule for this target."""
-    data = {
-        RULE_TARGET_KIND: kind,
-        RULE_TARGET_ID: target_id,
-        RULE_ALLOWED_OFFLINE: allowed,
-    }
+    """Save a rule: ``allowed`` is a duration key, or IGNORE.
+
+    Replaces an existing rule for the same target, also of the other type.
+    """
+    subentry_type = SUBENTRY_IGNORED if allowed == IGNORE else SUBENTRY_ALLOWED_OFFLINE
+    data = rule_data(kind, target_id, allowed)
     title = await async_rule_title(hass, kind, target_id, allowed)
-    unique_id = rule_unique_id(kind, target_id)
-    for subentry in entry.subentries.values():
-        if (
-            subentry.subentry_type == SUBENTRY_ALLOWED_OFFLINE
-            and subentry.unique_id == unique_id
-        ):
+    if existing := async_find_rule(entry, kind, target_id):
+        if existing.subentry_type == subentry_type:
             hass.config_entries.async_update_subentry(
-                entry, subentry, data=data, title=title
+                entry, existing, data=data, title=title
             )
             return
+        hass.config_entries.async_remove_subentry(entry, existing.subentry_id)
     hass.config_entries.async_add_subentry(
         entry,
         ConfigSubentry(
             data=MappingProxyType(data),
-            subentry_type=SUBENTRY_ALLOWED_OFFLINE,
+            subentry_type=subentry_type,
             title=title,
-            unique_id=unique_id,
+            unique_id=rule_unique_id(kind, target_id),
         ),
     )
 
@@ -107,22 +127,29 @@ async def async_set_rule(
 async def async_refresh_rule_titles(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update rule titles after a device was renamed or moved to another area."""
     for subentry in list(entry.subentries.values()):
-        if subentry.subentry_type != SUBENTRY_ALLOWED_OFFLINE:
+        if subentry.subentry_type not in RULE_TYPES:
             continue
         title = await async_rule_title(
             hass,
             subentry.data[RULE_TARGET_KIND],
             subentry.data[RULE_TARGET_ID],
-            subentry.data[RULE_ALLOWED_OFFLINE],
+            subentry.data.get(RULE_ALLOWED_OFFLINE, IGNORE),
         )
         if title != subentry.title:
             hass.config_entries.async_update_subentry(entry, subentry, title=title)
 
 
+# Used when the translations can't be loaded; same as translations/en.json.
+DURATION_FALLBACK = {"1d": "1 day", "3d": "3 days", "7d": "1 week", "30d": "30 days"}
+
+
 async def async_rule_title(
     hass: HomeAssistant, kind: str, target_id: str, allowed: str
 ) -> str:
-    """Return e.g. 'Leak sensor (Hallway) · 1 week' for the rules list."""
+    """Return e.g. 'Leak sensor (Hallway)' or 'Inverter (growatt) · 1 day'."""
+    name = async_target_title(hass, kind, target_id)
+    if allowed == IGNORE:
+        return name
     translations = await async_get_translations(
         hass, hass.config.language, "selector", [DOMAIN]
     )
@@ -130,7 +157,7 @@ async def async_rule_title(
         f"component.{DOMAIN}.selector.allowed_offline.options.{allowed}",
         DURATION_FALLBACK.get(allowed, allowed),
     )
-    return f"{async_target_title(hass, kind, target_id)} · {duration}"
+    return f"{name} · {duration}"
 
 
 @callback

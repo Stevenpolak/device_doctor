@@ -19,10 +19,10 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.device_doctor.const import (
-    ALWAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PROBLEM,
+    IGNORE,
     KIND_DEVICE,
     KIND_ENTRY,
 )
@@ -195,7 +195,7 @@ async def test_repair_issue_lifecycle(
 async def test_ignored_devices(
     hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
 ) -> None:
-    """Ignored devices ("always" rules) are left out, hubs and regular ones."""
+    """Ignored devices are left out, for hubs and for regular integrations."""
     add_integration(hass, "zha", [STATE_UNAVAILABLE, "1"], devices=2)
     add_integration(hass, "dlna_dmr", [STATE_UNAVAILABLE], devices=1)
     assert len(coordinator.scan().problems) == 2
@@ -203,7 +203,7 @@ async def test_ignored_devices(
     ignored = [device_id_of(hass, domain) for domain in ("zha", "dlna_dmr")]
     for device_id in ignored:
         await async_set_rule(
-            hass, coordinator.config_entry, KIND_DEVICE, device_id, ALWAYS
+            hass, coordinator.config_entry, KIND_DEVICE, device_id, IGNORE
         )
     assert coordinator.scan().problems == {}
 
@@ -252,9 +252,9 @@ async def test_skipped_entities_per_exclusion(
     add_integration(hass, "zha", ["1", "2", "3"], devices=3)
     sensor_id = device_id_of(hass, "zha")
     await async_set_rule(
-        hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, ALWAYS
+        hass, coordinator.config_entry, KIND_ENTRY, tv.entry_id, IGNORE
     )
-    await async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor_id, ALWAYS)
+    await async_set_rule(hass, coordinator.config_entry, KIND_DEVICE, sensor_id, IGNORE)
 
     assert coordinator.scan().skipped == {
         "ignored_integrations": 2,

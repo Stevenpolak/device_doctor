@@ -14,7 +14,7 @@ CONF_SCAN_INTERVAL = "scan_interval"
 CONF_CONFIRMATIONS = "confirmations"
 CONF_THRESHOLD = "threshold"
 CONF_SKIP_DOMAINS = "skip_domains"
-# Options from 0.4 and earlier, migrated into "always" rules.
+# Options from 0.4 and earlier, migrated into "ignored" rules.
 CONF_IGNORED_DEVICES = "ignored_devices"
 CONF_IGNORED_ENTRIES = "ignored_entries"
 CONF_HUB_DOMAINS = "hub_domains"
@@ -79,19 +79,21 @@ EVENT_RECOVERED = f"{DOMAIN}_recovered"
 STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
 
-# Allowed-offline rules, stored as config subentries of the Device Doctor entry.
+# Rules, stored as config subentries of the Device Doctor entry: "ignored"
+# (never checked) and "allowed offline" (checked, but only after a while).
+SUBENTRY_IGNORED = "ignored"
 SUBENTRY_ALLOWED_OFFLINE = "allowed_offline"
 RULE_TARGET_KIND = "target_kind"  # KIND_ENTRY or KIND_DEVICE
 RULE_TARGET_ID = "target_id"
 RULE_ALLOWED_OFFLINE = "allowed_offline"
-ALWAYS = "always"
-# Duration options in seconds; ALWAYS means never raise a problem (ignore).
-ALLOWED_OFFLINE_SECONDS: dict[str, int | None] = {
+# Passed instead of a duration to save an "ignored" rule.
+IGNORE = "ignore"
+# Allowed-offline durations in seconds.
+ALLOWED_OFFLINE_SECONDS: dict[str, int] = {
     "1d": 86400,
     "3d": 3 * 86400,
     "7d": 7 * 86400,
     "30d": 30 * 86400,
-    ALWAYS: None,
 }
 
 # Something that came back this often in a week is probably switched off on

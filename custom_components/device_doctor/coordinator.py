@@ -270,9 +270,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         hub_domains = set(opts[CONF_HUB_DOMAINS])
         skip_entity_domains = set(opts[CONF_SKIP_ENTITY_DOMAINS])
         threshold = float(opts[CONF_THRESHOLD]) / 100
-        always = [rule for rule in self.rules.values() if rule.always]
-        ignored_entries = {r.target_id for r in always if r.kind == KIND_ENTRY}
-        ignored_devices = {r.target_id for r in always if r.kind == KIND_DEVICE}
+        ignored = [rule for rule in self.rules.values() if rule.ignored]
+        ignored_entries = {r.target_id for r in ignored if r.kind == KIND_ENTRY}
+        ignored_devices = {r.target_id for r in ignored if r.kind == KIND_DEVICE}
 
         ent_reg = er.async_get(self.hass)
         dev_reg = dr.async_get(self.hass)
@@ -441,7 +441,7 @@ def _is_allowed(problem: Problem, rules: dict[tuple[str, str], Rule]) -> bool:
         rule = rules.get((KIND_ENTRY, problem.entry_id))
     if rule is None:
         return False
-    return rule.always or problem.offline_for <= rule.seconds
+    return rule.ignored or problem.offline_for <= rule.seconds
 
 
 def _seconds_since(stamp: str, now: datetime) -> int:

@@ -41,6 +41,7 @@ from .const import (
     CONF_THRESHOLD,
     DEFAULT_OPTIONS,
     DOMAIN,
+    IGNORE,
     KIND_DEVICE,
     KIND_ENTRY,
     RULE_ALLOWED_OFFLINE,
@@ -51,8 +52,15 @@ from .const import (
     SECTION_SCANNING,
     SECTIONS,
     SUBENTRY_ALLOWED_OFFLINE,
+    SUBENTRY_IGNORED,
 )
-from .rules import async_rule_title, async_target_title, rule_unique_id
+from .rules import (
+    async_find_rule,
+    async_rule_title,
+    async_target_title,
+    rule_data,
+    rule_unique_id,
+)
 from .selectors import allowed_offline_selector
 
 CONF_DEVICE = "device"
@@ -64,7 +72,8 @@ class DeviceDoctorConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     # 2: ignored entries and devices moved from the options into rules.
-    MINOR_VERSION = 2
+    # 3: ignored rules are their own subentry type.
+    MINOR_VERSION = 3
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -90,11 +99,17 @@ class DeviceDoctorConfigFlow(ConfigFlow, domain=DOMAIN):
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Allowed-offline rules are listed and edited on the Device Doctor page."""
-        return {SUBENTRY_ALLOWED_OFFLINE: AllowedOfflineFlow}
+        return {
+            SUBENTRY_IGNORED: IgnoredFlow,
+            SUBENTRY_ALLOWED_OFFLINE: AllowedOfflineFlow,
+        }
 
 
-class AllowedOfflineFlow(ConfigSubentryFlow):
-    """Add an allowed-offline rule, or change how long it allows."""
+class _RuleFlow(ConfigSubentryFlow):
+    """Pick a device on a hub or an integration, then save a rule for it."""
+
+    # Allowed-offline rules also ask for a duration; ignored rules don't.
+    with_duration = False
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -109,9 +124,7 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """A device behind a hub, such as one Zigbee sensor."""
         if user_input is not None:
-            return await self._create(
-                KIND_DEVICE, user_input[CONF_DEVICE], user_input[RULE_ALLOWED_OFFLINE]
-            )
+            return await self._create(KIND_DEVICE, user_input[CONF_DEVICE], user_input)
         hubs = {**DEFAULT_OPTIONS, **self._get_entry().options}[CONF_HUB_DOMAINS]
         device = DeviceSelector(
             DeviceSelectorConfig(
@@ -119,7 +132,7 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
             )
         )
         return self.async_show_form(
-            step_id="device", data_schema=_rule_schema(CONF_DEVICE, device)
+            step_id="device", data_schema=self._schema(CONF_DEVICE, device)
         )
 
     async def async_step_entry(
@@ -127,13 +140,42 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """A whole integration entry, such as one ESPHome device."""
         if user_input is not None:
-            return await self._create(
-                KIND_ENTRY, user_input[CONF_ENTRY], user_input[RULE_ALLOWED_OFFLINE]
-            )
+            return await self._create(KIND_ENTRY, user_input[CONF_ENTRY], user_input)
         return self.async_show_form(
             step_id="entry",
-            data_schema=_rule_schema(CONF_ENTRY, _entry_select(self.hass)),
+            data_schema=self._schema(CONF_ENTRY, _entry_select(self.hass)),
         )
+
+    def _schema(self, key: str, target: Any) -> vol.Schema:
+        schema: dict[Any, Any] = {vol.Required(key): target}
+        if self.with_duration:
+            schema[vol.Required(RULE_ALLOWED_OFFLINE, default="1d")] = (
+                allowed_offline_selector()
+            )
+        return vol.Schema(schema)
+
+    async def _create(
+        self, kind: str, target_id: str, user_input: dict[str, Any]
+    ) -> SubentryFlowResult:
+        # One rule per target, whichever type it is.
+        if async_find_rule(self._get_entry(), kind, target_id):
+            return self.async_abort(reason="already_configured")
+        allowed = user_input.get(RULE_ALLOWED_OFFLINE, IGNORE)
+        return self.async_create_entry(
+            title=await async_rule_title(self.hass, kind, target_id, allowed),
+            data=rule_data(kind, target_id, allowed),
+            unique_id=rule_unique_id(kind, target_id),
+        )
+
+
+class IgnoredFlow(_RuleFlow):
+    """Ignore a device or integration: it is never checked."""
+
+
+class AllowedOfflineFlow(_RuleFlow):
+    """Allow a device or integration to be offline for a while."""
+
+    with_duration = True
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -164,36 +206,6 @@ class AllowedOfflineFlow(ConfigSubentryFlow):
                 "title": async_target_title(self.hass, kind, target_id)
             },
         )
-
-    async def _create(
-        self, kind: str, target_id: str, allowed: str
-    ) -> SubentryFlowResult:
-        unique_id = rule_unique_id(kind, target_id)
-        if any(
-            subentry.unique_id == unique_id
-            for subentry in self._get_entry().subentries.values()
-        ):
-            return self.async_abort(reason="already_configured")
-        return self.async_create_entry(
-            title=await async_rule_title(self.hass, kind, target_id, allowed),
-            data={
-                RULE_TARGET_KIND: kind,
-                RULE_TARGET_ID: target_id,
-                RULE_ALLOWED_OFFLINE: allowed,
-            },
-            unique_id=unique_id,
-        )
-
-
-def _rule_schema(key: str, target: Any) -> vol.Schema:
-    return vol.Schema(
-        {
-            vol.Required(key): target,
-            vol.Required(
-                RULE_ALLOWED_OFFLINE, default="1d"
-            ): allowed_offline_selector(),
-        }
-    )
 
 
 def _entry_select(hass: HomeAssistant) -> SelectSelector:
