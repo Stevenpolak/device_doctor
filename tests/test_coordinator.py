@@ -117,7 +117,8 @@ async def test_failed_entry_without_entities(
     """An entry that failed setup is flagged even with no entities."""
     entry = add_integration(hass, "broken", [], state=ConfigEntryState.SETUP_RETRY)
     problem = coordinator.scan().problems[entry.entry_id]
-    assert problem.detail == "entry setup_retry"
+    assert problem.detail == "setup_retry"
+    assert problem.issue_key == "entry_failed"
     assert problem.total == 0
 
 
@@ -294,3 +295,22 @@ async def test_faults_total_counts_and_persists(hass: HomeAssistant) -> None:
     await second.async_refresh()
     assert second.faults_total == 2
     await second.async_unload()
+
+
+async def test_issue_keys_and_plain_placeholders(
+    hass: HomeAssistant, coordinator: DeviceDoctorCoordinator
+) -> None:
+    """Failed and unavailable entries get their own texts; no English in data."""
+    failed = add_integration(hass, "broken", [], state=ConfigEntryState.SETUP_RETRY)
+    quiet = add_integration(hass, "p1", [STATE_UNAVAILABLE])
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+
+    issue_reg = ir.async_get(hass)
+    failed_issue = issue_reg.async_get_issue(DOMAIN, f"entry_{failed.entry_id}")
+    quiet_issue = issue_reg.async_get_issue(DOMAIN, f"entry_{quiet.entry_id}")
+    assert failed_issue.translation_key == "entry_failed"
+    assert failed_issue.translation_placeholders["state"] == "setup_retry"
+    assert failed_issue.translation_placeholders["has_reason"] == "no"
+    assert quiet_issue.translation_key == "entry_unavailable"
+    assert quiet_issue.translation_placeholders["bad"] == "1"

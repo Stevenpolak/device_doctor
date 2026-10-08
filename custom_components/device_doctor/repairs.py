@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from .const import CONF_IGNORED_DEVICES, CONF_IGNORED_ENTRIES, DEFAULT_OPTIONS, DOMAIN
 from .coordinator import KIND_ENTRY
 
-PLACEHOLDERS = ("title", "domain", "detail", "bad", "total", "reason")
+PLACEHOLDERS = ("title", "domain", "state", "bad", "total", "has_reason", "reason")
 
 
 class DeviceDoctorRepairFlow(RepairsFlow):
@@ -24,7 +24,7 @@ class DeviceDoctorRepairFlow(RepairsFlow):
 
     @property
     def _placeholders(self) -> dict[str, str]:
-        return {key: str(self._data.get(key, "-")) for key in PLACEHOLDERS}
+        return {key: str(self._data.get(key, "")) for key in PLACEHOLDERS}
 
     async def async_step_init(
         self, user_input: dict[str, str] | None = None

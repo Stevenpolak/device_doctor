@@ -140,13 +140,33 @@
     }
   },
   "issues": {
-    "entry_problem": {
+    "entry_failed": {
+      "title": "{title} ({domain}) failed to start",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} failed to start",
+            "description": "{title} {state, select, setup_retry {keeps trying to start, but fails every time} migration_error {could not update its stored settings} failed_unload {could not be stopped cleanly} other {failed to start}}.{has_reason, select, yes {\n\nLast error: {reason}} other {}}\n\nReloading sometimes fixes this, for example after a network problem. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "menu_options": {
+              "reload": "Reload integration",
+              "ignore": "Ignore this integration"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
+        }
+      }
+    },
+    "entry_unavailable": {
       "title": "{title} ({domain}) is not working",
       "fix_flow": {
         "step": {
           "init": {
             "title": "{title} is not working",
-            "description": "{bad} of {total} entities are unavailable, {detail}.\n\nLast error: {reason}\n\nReloading often restores a connection that silently died. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "description": "{title} is running, but {bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable.\n\nReloading often restores a connection that silently died. If it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
             "menu_options": {
               "reload": "Reload integration",
               "ignore": "Ignore this integration"
@@ -166,7 +186,7 @@
         "step": {
           "init": {
             "title": "{title} is unavailable",
-            "description": "{bad} of {total} entities of this {domain} device ({detail}) are unavailable. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\nIf the device is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
+            "description": "{bad} of {total, plural, one {# entity} other {# entities}} {bad, plural, one {is} other {are}} unavailable on this {domain} device. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\nIf it is allowed to be offline, ignore it and Device Doctor will stop checking it (undo under Configure → Exclusions).",
             "menu_options": {
               "ignore": "Ignore this device"
             }

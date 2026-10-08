@@ -136,7 +136,7 @@ Both events carry:
 | `title` | `P1 meter` | Name of the integration or device |
 | `domain` | `homewizard` | Integration type |
 | `entry_id` | `e417a3cb…` | Integration entry to reload |
-| `detail` | `entry loaded` / `Hallway` | Integration state, or the device's area |
+| `detail` | `loaded` / `setup_retry` / `Hallway` | Integration state, or the device's area (empty if it has none) |
 | `bad`, `total` | `32`, `32` | Unavailable sensors out of all checked sensors |
 | `reason` | `Timeout connecting…` | Last error, if the integration reported one |
 

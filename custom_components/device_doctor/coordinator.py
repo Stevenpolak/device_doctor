@@ -43,6 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 KIND_ENTRY = "entry"
 KIND_DEVICE = "device"
+FAILED_STATE_VALUES = frozenset(state.value for state in FAILED_ENTRY_STATES)
 
 type DeviceDoctorConfigEntry = ConfigEntry[DeviceDoctorCoordinator]
 
@@ -56,7 +57,7 @@ class Problem:
     title: str
     domain: str
     entry_id: str  # config entry to reload
-    detail: str  # entry state, or the device's area
+    detail: str  # raw entry state (e.g. "setup_retry"), or the device's area
     bad: int = 0
     total: int = 0
     reason: str | None = None
@@ -65,6 +66,15 @@ class Problem:
     def issue_id(self) -> str:
         """Return the repair issue id for this problem."""
         return f"{self.kind}_{self.id}"
+
+    @property
+    def issue_key(self) -> str:
+        """Return the translation key of the repair issue."""
+        if self.kind == KIND_DEVICE:
+            return "device_problem"
+        if self.detail in FAILED_STATE_VALUES:
+            return "entry_failed"
+        return "entry_unavailable"
 
     def as_dict(self) -> dict[str, Any]:
         """Return a serialisable representation."""
@@ -254,7 +264,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                     title=entry.title or entry.domain,
                     domain=entry.domain,
                     entry_id=entry_id,
-                    detail=f"entry {entry.state.value}",
+                    detail=entry.state.value,
                     bad=bad,
                     total=total,
                     reason=entry.reason,
@@ -275,7 +285,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 title=device.name_by_user or device.name or device_id,
                 domain=entries[entry_id].domain,
                 entry_id=entry_id,
-                detail=area.name if area else "no area",
+                detail=area.name if area else "",
                 bad=bad,
                 total=total,
             )
@@ -288,13 +298,15 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         previous = self.data.confirmed if self.data else self._restored
 
         for pid, problem in confirmed.items():
+            # Plain values only; the wording lives in the translations.
             placeholders = {
                 "title": problem.title,
                 "domain": problem.domain,
-                "detail": problem.detail,
+                "state": problem.detail if problem.kind == KIND_ENTRY else "",
                 "bad": str(problem.bad),
                 "total": str(problem.total),
-                "reason": problem.reason or "-",
+                "has_reason": "yes" if problem.reason else "no",
+                "reason": problem.reason or "",
             }
             ir.async_create_issue(
                 self.hass,
@@ -304,7 +316,7 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 is_fixable=True,
                 is_persistent=False,
                 severity=ir.IssueSeverity.WARNING,
-                translation_key=f"{problem.kind}_problem",
+                translation_key=problem.issue_key,
                 translation_placeholders=placeholders,
                 data={
                     **placeholders,
