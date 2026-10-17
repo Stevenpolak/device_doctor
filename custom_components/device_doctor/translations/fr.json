@@ -1,0 +1,381 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Device Doctor",
+        "description": "Device Doctor analyse régulièrement l'ensemble des intégrations et des appareils ; il signale un problème nécessitant une réparation lorsqu'une intégration tombe en panne, ou lorsque la majeure partie des entités associées à une intégration ou à un concentrateur (hub) demeurent indisponibles. Les paramètres par défaut conviennent à la plupart des configurations ; vous pourrez toutefois tout modifier ultérieurement dans la section « Configurer ».",
+        "sections": {
+          "scanning": {
+            "name": "Analyse",
+            "description": "À quelle fréquence vérifier, et à partir de quel moment considérer qu’un élément est défectueux.",
+            "data": {
+              "scan_interval": "Intervalle d'analyse",
+              "confirmations": "Confirmations",
+              "threshold": "Seuil d’indisponibilité"
+            },
+            "data_description": {
+              "scan_interval": "Fréquence des analyses.",
+              "confirmations": "Combien d'analyses consécutives, durant lesquelles un élément doit apparaître défectueux, sont nécessaires pour déclencher une demande de réparation ? Ce paramètre permet d'écarter les redémarrages et les anomalies passagères de courte durée.",
+              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil."
+            }
+          },
+          "exclusions": {
+            "name": "Exclusions",
+            "description": "Types d’intégration qui ne sont jamais vérifiés. Pour ignorer une intégration ou un appareil spécifique, ou pour le laisser hors ligne pendant un certain temps, utilisez le menu associé à une réparation ou ajoutez une règle sur la page « Device Doctor ».",
+            "data": {
+              "skip_domains": "Types d’intégration ignorés"
+            },
+            "data_description": {
+              "skip_domains": "Comme des entrées qui se contentent de refléter d’autres entités."
+            }
+          },
+          "advanced": {
+            "name": "Advancé",
+            "description": "Les paramètres par défaut conviennent à la plupart des configurations.",
+            "data": {
+              "hub_domains": "Intégrations au hub (vérifiées par appareil)",
+              "skip_entity_domains": "Types d’entités ignorés",
+              "count_unknown": "Considérer « inconnu » comme indisponible"
+            },
+            "data_description": {
+              "hub_domains": "Intégrations avec un point d'entrée unique pour de nombreux appareils (Zigbee, Z-Wave, MQTT). Chaque appareil est évalué individuellement.",
+              "skip_entity_domains": "Types d’entités qui restent généralement à l’état « inconnu » tant qu’ils ne sont pas utilisés, comme les boutons et les scènes.",
+              "count_unknown": "Certaines intégrations indiquent « inconnu » plutôt que « indisponible » lorsqu’elles perdent la connexion."
+            }
+          }
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Device Doctor est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de Device Doctor",
+        "sections": {
+          "scanning": {
+            "name": "Analyse",
+            "description": "À quelle fréquence vérifier, et à partir de quel moment considérer qu’un élément est défectueux.",
+            "data": {
+              "scan_interval": "Intervalle d'analyse",
+              "confirmations": "Confirmations",
+              "threshold": "Seuil d’indisponibilité"
+            },
+            "data_description": {
+              "scan_interval": "Fréquence des analyses.",
+              "confirmations": "Combien d'analyses consécutives, durant lesquelles un élément doit apparaître défectueux, sont nécessaires pour déclencher une demande de réparation ? Ce paramètre permet d'écarter les redémarrages et les anomalies passagères de courte durée",
+              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil."
+            }
+          },
+          "exclusions": {
+            "name": "Exclusions",
+            "description": "Types d’intégration qui ne sont jamais vérifiés. Pour ignorer une intégration ou un appareil spécifique, ou pour le laisser hors ligne pendant un certain temps, utilisez le menu associé à une réparation ou ajoutez une règle sur la page « Device Doctor ».",
+            "data": {
+              "skip_domains": "Types d’intégration ignorés"
+            },
+            "data_description": {
+              "skip_domains": "Comme des entrées qui se contentent de refléter d’autres entités."
+            }
+          },
+          "advanced": {
+            "name": "Advancé",
+            "description": "Les paramètres par défaut conviennent à la plupart des configurations.",
+            "data": {
+              "hub_domains": "Intégrations au hub (vérifiées par appareil)",
+              "skip_entity_domains": "Types d’entités ignorés",
+              "count_unknown": "Considérer « inconnu » comme indisponible"
+            },
+            "data_description": {
+              "hub_domains": "Intégrations avec un point d'entrée unique pour de nombreux appareils (Zigbee, Z-Wave, MQTT). Chaque appareil est évalué individuellement.",
+              "skip_entity_domains": "Types d’entités qui restent généralement à l’état « inconnu » tant qu’ils ne sont pas utilisés, comme les boutons et les scènes.",
+              "count_unknown": "Certaines intégrations indiquent « inconnu » plutôt que « indisponible » lorsqu’elles perdent la connexion."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "problems": {
+        "name": "Problèmes"
+      },
+      "faults_total": {
+        "name": "Défauts constatés"
+      },
+      "skipped_entities": {
+        "name": "Entités ignorées",
+        "state_attributes": {
+          "ignored_integrations": {
+            "name": "Types d’intégration ignorés"
+          },
+          "ignored_entries": {
+            "name": "Intégrations ignorées"
+          },
+          "ignored_devices": {
+            "name": "Appareils ignorés"
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Problème détecté"
+      }
+    },
+    "button": {
+      "scan_now": {
+        "name": "Analyser maintenant"
+      }
+    }
+  },
+  "issues": {
+    "entry_retrying": {
+      "title": "{title} ({domain}) ne parvient pas à démarrer",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) ne parvient pas à démarrer",
+            "description": "{title} tente de démarrer, mais échoue à chaque fois.\n\n- Dernière erreur: {reason}\n- Hors ligne depuis: {since}\n- C’est revenu tout seul au cours de la semaine dernière: {returns_7d}\n\n**Recharger** permet parfois de résoudre ce problème, par exemple après un problème de réseau.\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il est éteint de temps à autre, comme un téléviseur ou un onduleur solaire pendant la nuit. Si c’est revenu tout seul à plusieurs reprises cette semaine, c’est probablement le cas. **Ignorer** s’il est possible qu’il soit définitivement hors ligne. Les deux pourront être modifiés ultérieurement sur la page Device Doctor.\n\n[Ouvrir la page d’intégration]({link})",
+            "menu_options": {
+              "reload": "Recharger l'intégration",
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain temps",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    },
+    "entry_failed": {
+      "title": "{title} ({domain}) ne parvient pas à démarrer",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) ne parvient pas à démarrer",
+            "description": "{title} tente de démarrer, mais échoue à chaque fois.\n\n- Dernière erreur: {reason}\n- Hors ligne depuis: {since}\n- C’est revenu tout seul au cours de la semaine dernière: {returns_7d}\n\n**Recharger** permet parfois de résoudre ce problème, par exemple après un problème de réseau.\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il est éteint de temps à autre, comme un téléviseur ou un onduleur solaire pendant la nuit. Si c’est revenu tout seul à plusieurs reprises cette semaine, c’est probablement le cas. **Ignorer** s’il est possible qu’il soit définitivement hors ligne. Les deux pourront être modifiés ultérieurement sur la page Device Doctor.\n\n[Ouvrir la page d’intégration]({link})",
+            "menu_options": {
+              "reload": "Recharger l'intégration",
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain temps",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    },
+    "entry_unavailable": {
+      "title": "{title} ({domain}) ne fonctionne pas",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) ne fonctionne pas",
+            "description": "{title} est en cours d’exécution, mais la plupart de ses entités sont indisponibles.\n\n- Entités indisponibles: {bad} de {total}\n- Hors ligne depuis: {since}\n- C’est revenu tout seul au cours de la semaine dernière: {returns_7d}\n\n**Recharger** permet souvent de rétablir une connexion qui s’est interrompue silencieusement.\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il est éteint de temps à autre, comme un téléviseur ou un onduleur solaire durant la nuit. Si c’est revenu tout seul à plusieurs reprises cette semaine, c’est probablement le cas. **s'il est possible qu'il soit définitivement hors ligne. Ces deux éléments pourront être modifiés ultérieurement sur la page « Device Doctor »..\n\n[Ouvrir la page d’intégration]({link})",
+            "menu_options": {
+              "reload": "Recharger l'intégration",
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain tempsr",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    },
+    "device_problem": {
+      "title": "{title} est indisponible",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} est indisponible",
+            "description": "Cet appareil {domain} ne transmet aucune information. Il est peut-être déchargé, hors de portée ou non alimenté. Cette réparation disparaît d’elle-même une fois que l’appareil émet à nouveau un signal.\n\n- Entités indisponibles: {bad} de {total}\n- Hors ligne depuis: {since}\n- C’est revenu tout seul au cours de la semaine dernière.: {returns_7d}\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il est éteint de temps à autre, comme un téléviseur ou un onduleur solaire pendant la nuit. Si c’est revenu tout seul à plusieurs reprises cette semaine, c’est probablement le cas.. **Ignorer** s'il doit rester hors ligne définitivement. Ces deux paramètres pourront être modifiés ultérieurement sur la page « Device Doctor ».\n\n[Ouvrir la page de l’appareil]({link})",
+            "menu_options": {
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain temps",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    }
+  },
+  "services": {
+    "reload_problems": {
+      "name": "Recharger les intégrations problématiques",
+      "description": "Recharge toutes les intégrations que Device Doctor signale actuellement comme ne fonctionnant pas. Les périphériques connectés via un concentrateur (hub) ne sont pas rechargés."
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Device Doctor n’est pas en cours d’exécution."
+    }
+  },
+  "config_subentries": {
+    "ignored": {
+      "entry_type": "Ignoré",
+      "initiate_flow": {
+        "user": "Ignorer"
+      },
+      "step": {
+        "user": {
+          "title": "Que faut-il ignorer ?",
+          "description": "Les appareils et intégrations ignorés ne sont jamais vérifiés. Pour les équipements qui ne sont éteints qu’occasionnellement, préférez plutôt les laisser passer en état « hors ligne » pendant un certain temps.",
+          "menu_options": {
+            "device": "Un appareil connecté à une passerelle (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "Une intégration"
+          }
+        },
+        "device": {
+          "title": "Ignorer un appareil",
+          "data": {
+            "device": "Appareil"
+          }
+        },
+        "entry": {
+          "title": "Ignorer une intégration",
+          "data": {
+            "entry": "Intégration"
+          }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "{title} est ignoré: Device Doctor ne le vérifie jamais.\n\n[Ouvrir sa page]({link})",
+          "menu_options": {
+            "allow_offline": "Optez plutôt pour un mode hors ligne pendant quelque temps.",
+            "remove": "Arrêtez d’ignorer"
+          }
+        },
+        "allow_offline": {
+          "title": "Autoriser {title} hors ligne",
+          "data": {
+            "allowed_offline": "Peut être hors ligne pendant"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor ne le signale qu’une fois qu’il est hors ligne depuis une durée supérieure à celle-ci."
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "Il existe déjà une règle pour cela. Modifiez-la ou supprimez-la sur la page Device Doctor.",
+        "changed": "La règle a été modifiée.",
+        "removed": "La règle a été supprimée. Elle est à nouveau vérifiée normalement."
+      }
+    },
+    "allowed_offline": {
+      "entry_type": "Autorisé hors ligne",
+      "initiate_flow": {
+        "user": "Autorisé hors ligne"
+      },
+      "step": {
+        "user": {
+          "title": "Qu’est-ce qui pourrait rester hors ligne pendant un certain temps ?",
+          "description": "Pour les équipements qui sont parfois mis hors tension — comme un téléviseur, un fer à souder ou un onduleur solaire durant la nuit — Device Doctor vous signale tout de même s'ils ne se remettent pas en marche.",
+          "menu_options": {
+            "device": "Un appareil connecté à une passerelle (Zigbee, Z-Wave, MQTT, …)",
+            "entry": "Une intégration"
+          }
+        },
+        "device": {
+          "title": "Autoriser un appareil hors ligne",
+          "data": {
+            "device": "Appareil",
+            "allowed_offline": "Peut être hors ligne pendant"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor ne le signale qu’une fois qu’il est hors ligne depuis une durée supérieure à celle-ci."
+          }
+        },
+        "entry": {
+          "title": "Permettre une intégration hors ligne",
+          "data": {
+            "entry": "Intégration",
+            "allowed_offline": "Peut être hors ligne pendant"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor ne le signale qu’une fois qu’il est hors ligne depuis une durée supérieure à celle-ci."
+          }
+        },
+        "reconfigure": {
+          "title": "{title}",
+          "description": "{title} peut être hors ligne pendant {duration} avant que Device Doctor ne le signale.\n\n[Ouvrir sa page]({link})",
+          "menu_options": {
+            "duration": "Modifier la durée",
+            "ignore": "Ignorer",
+            "remove": "Ne plus autoriser le mode hors ligne"
+          }
+        },
+        "duration": {
+          "title": "Modifier la durée pendant laquelle {title} peut être hors ligne",
+          "description": "Combien de temps {title} peut-il rester hors ligne avant que Device Doctor ne le signale ?",
+          "data": {
+            "allowed_offline": "Peut être hors ligne pendant"
+          },
+          "data_description": {
+            "allowed_offline": "Device Doctor ne le signale qu’une fois qu’il est hors ligne depuis une durée supérieure à celle-ci."
+          }
+        }
+      },
+      "abort": {
+        "already_configured": "Il existe déjà une règle pour cela. Modifiez-la ou supprimez-la sur la page Device Doctor.",
+        "reconfigure_successful": "La règle a été mise à jour.",
+        "changed": "La règle a été modifiée.",
+        "removed": "La règle a été supprimée. Elle est à nouveau vérifiée normalement."
+      }
+    }
+  },
+  "selector": {
+    "allowed_offline": {
+      "options": {
+        "1d": "1 jour",
+        "3d": "3 jours",
+        "7d": "1 semaine",
+        "30d": "30 jours"
+      }
+    }
+  }
+}
