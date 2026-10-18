@@ -215,7 +215,7 @@ Home Assistant can't see devices while it's switched off itself, so
 
 ## Languages
 
-Device Doctor speaks English and Dutch, following your Home Assistant
+Device Doctor speaks English, Dutch and French, following your Home Assistant
 language. Want to add yours? Copy `custom_components/device_doctor/translations/en.json`
 to `<language code>.json` (for example `de.json`), translate the texts, keep
 the `{placeholders}` as they are, and open a pull request.
