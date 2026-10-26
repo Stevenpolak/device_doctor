@@ -29,6 +29,9 @@ It catches:
 - an integration that claims to be running while most of its sensors are unavailable
 - a single Zigbee, Z-Wave, Matter or MQTT device that has gone silent, such as a
   leak sensor with a flat battery
+- an MQTT device that stopped sending but keeps showing its last values, such
+  as a Zigbee2MQTT sensor without availability, a 433 MHz weather station or a
+  Grott inverter
 
 To avoid false alarms, something has to look broken on two scans in a row
 before you hear about it. A reboot or a short Wi-Fi hiccup won't bother you.
@@ -109,13 +112,14 @@ exactly one device.
 Doctor → Configure**. The settings are grouped in three sections:
 
 - **Scanning**: how often to scan (10 minutes), how many scans in a row before
-  a repair is raised (2), and what share of a device's sensors must be
-  unavailable (more than 50 %)
+  a repair is raised (2), what share of a device's sensors must be
+  unavailable (more than 50 %), and how long a device may stay quiet (the
+  silence limit, 25 hours; 0 turns it off)
 - **Exclusions**: integration types that are never checked, such as helpers
   that only mirror other sensors
-- **Advanced**: which integrations are checked per device, which entity types
-  are skipped, and whether `unknown` counts as unavailable. You rarely need
-  these.
+- **Advanced**: which integrations are checked per device, which are checked
+  for silence (MQTT), which entity types are skipped, and whether `unknown`
+  counts as unavailable. You rarely need these.
 
 **On the Device Doctor device page** you'll find:
 
@@ -220,8 +224,11 @@ Both events carry:
 | `reason` | `Timeout connecting…` | Last error, if the integration reported one |
 | `offline_for` | `7200` | Seconds it has been offline. On `device_doctor_recovered`: how long the outage lasted |
 | `last_ok` | `2026-10-08T21:14:03+00:00` | When Device Doctor last saw it working, or `null` if never |
-| `since` | `2026-10-08T21:14:03+00:00` | Start of the outage: `last_ok`, or when it was first seen broken |
+| `since` | `2026-10-08T21:14:03+00:00` | Start of the outage: `last_ok` (`last_heard` when silent), or when it was first seen broken |
 | `returns_7d` | `3` | How often it came back by itself in the past week |
+| `cause` | `unavailable` / `silent` | Why it counts as down: unavailable sensors (or a failed start), or nothing heard for longer than the silence limit |
+| `last_heard` | `2026-10-08T21:14:03+00:00` | When it last reported, for silence-checked integrations; `null` if Device Doctor never heard from it |
+| `reported_at` | `2026-10-09T22:30:00+00:00` | When its repair was opened |
 | `link` | `/config/devices/device/…` | Its page in Home Assistant |
 
 `device_doctor_recovered` only fires when something actually works again, not
@@ -249,6 +256,20 @@ Device Doctor can't know it's allowed to be off. Click its repair and choose
 A device is only flagged when more than half of its checked sensors are
 unavailable. Disabled sensors, buttons and scenes don't count. You can change
 the threshold under **Configure → Scanning**.
+
+**My Zigbee2MQTT device stays on its last value. Is it checked?**
+Yes. Some MQTT devices never turn *unavailable*, they just stop sending:
+Zigbee2MQTT with `availability` off (its default), 433 MHz sensors through
+OpenMQTTGateway or rtl_433, or a Grott inverter. Device Doctor raises a repair
+when none of a device's sensors has reported for 25 hours. If most of them go
+quiet at once, you get one repair for MQTT itself (the broker or Zigbee2MQTT is
+probably down). Turning on `availability` in Zigbee2MQTT is still better: it
+notices within hours. For a device that only reports now and then, use **Allow
+offline for a while**.
+
+Only MQTT is checked for silence by default. ZHA, Z-Wave JS, Matter and Hue
+mark dead devices unavailable themselves, and a quiet ZHA plug or button is
+usually fine. You can add other integrations under **Configure → Advanced**.
 
 **After updating, a repair shows "Translation … MISSING_VALUE" or raw labels like `allow_offline`?**
 Your browser still has the texts of the previous version. Reload the page

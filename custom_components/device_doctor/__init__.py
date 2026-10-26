@@ -12,6 +12,8 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     CONF_IGNORED_DEVICES,
     CONF_IGNORED_ENTRIES,
+    CONF_SKIP_ENTITY_DOMAINS,
+    DEFAULT_OPTIONS,
     DOMAIN,
     IGNORE,
     KIND_DEVICE,
@@ -19,6 +21,7 @@ from .const import (
     RULE_ALLOWED_OFFLINE,
     RULE_TARGET_ID,
     RULE_TARGET_KIND,
+    SKIP_ENTITY_DOMAINS_1_3,
     SUBENTRY_ALLOWED_OFFLINE,
 )
 from .coordinator import DeviceDoctorConfigEntry, DeviceDoctorCoordinator
@@ -42,6 +45,7 @@ async def async_migrate_entry(
 
     1.2: 0.4's ignored entries and devices become ignored rules.
     1.3: 0.5.0b1's "allowed offline: always" rules become ignored rules.
+    1.4: untouched skipped entity types get the new defaults (tts, stt, ...).
     """
     if entry.version == 1 and entry.minor_version < 2:
         options = dict(entry.options)
@@ -66,6 +70,13 @@ async def async_migrate_entry(
                     IGNORE,
                 )
         hass.config_entries.async_update_entry(entry, minor_version=3)
+    if entry.version == 1 and entry.minor_version < 4:
+        options = dict(entry.options)
+        if sorted(options.get(CONF_SKIP_ENTITY_DOMAINS, [])) == SKIP_ENTITY_DOMAINS_1_3:
+            options[CONF_SKIP_ENTITY_DOMAINS] = DEFAULT_OPTIONS[
+                CONF_SKIP_ENTITY_DOMAINS
+            ]
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=4)
     return True
 
 

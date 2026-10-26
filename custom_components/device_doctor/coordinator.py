@@ -10,7 +10,7 @@ from typing import Any
 
 from homeassistant.config_entries import SOURCE_IGNORE, ConfigEntry, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -22,10 +22,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CAUSE_SILENT,
+    CAUSE_UNAVAILABLE,
     CONF_CONFIRMATIONS,
     CONF_COUNT_UNKNOWN,
     CONF_HUB_DOMAINS,
     CONF_SCAN_INTERVAL,
+    CONF_SILENCE_DOMAINS,
+    CONF_SILENCE_HOURS,
     CONF_SKIP_DOMAINS,
     CONF_SKIP_ENTITY_DOMAINS,
     CONF_THRESHOLD,
@@ -70,6 +74,10 @@ class Problem:
     returns_7d: int = 0  # times it came back in the past week
     link: str = ""  # device or integration page in the Home Assistant UI
     reported_at: str | None = None  # when its repair was opened (ISO)
+    cause: str = CAUSE_UNAVAILABLE  # or CAUSE_SILENT
+    # When it last reported (ISO), for silence-checked integrations; None if
+    # Device Doctor never heard from it.
+    last_heard: str | None = None
 
     @property
     def issue_id(self) -> str:
@@ -79,6 +87,8 @@ class Problem:
     @property
     def issue_key(self) -> str:
         """Return the translation key of the repair issue."""
+        if self.cause == CAUSE_SILENT:
+            return f"{self.kind}_silent"
         if self.kind == KIND_DEVICE:
             return "device_problem"
         if self.detail == ConfigEntryState.SETUP_RETRY.value:
@@ -148,6 +158,13 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         self.last_ok: dict[str, str] = {}
         self.down_since: dict[str, str] = {}
         self.returns: dict[str, list[str]] = {}
+        # Silence check, per id: when it last reported, or (never heard from)
+        # since when Device Doctor has been listening.
+        self.last_heard: dict[str, str] = {}
+        self.listening_since: dict[str, str] = {}
+        # Per entity: its last_reported when first seen. Home Assistant writes
+        # every entity at startup, so only a later write counts as heard.
+        self._baseline: dict[str, datetime] = {}
         self._issue_ids: set[str] = set()
         # Options and rule data at setup; a change to these needs a reload.
         self.settings: tuple[Any, ...] = ()
@@ -177,6 +194,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         self.last_ok = data.get("last_ok", {})
         self.down_since = data.get("down_since", {})
         self.returns = data.get("returns", {})
+        self.last_heard = data.get("last_heard", {})
+        self.listening_since = data.get("listening_since", {})
 
     async def async_unload(self) -> None:
         """Persist state and withdraw our repair issues."""
@@ -195,6 +214,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             "last_ok": self.last_ok,
             "down_since": self.down_since,
             "returns": self.returns,
+            "last_heard": self.last_heard,
+            "listening_since": self.listening_since,
         }
 
     async def _async_update_data(self) -> ScanResult:
@@ -207,14 +228,22 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         await async_refresh_rule_titles(self.hass, self.config_entry)
 
         now = dt_util.utcnow()
-        findings = self.scan()
+        findings = self.scan(now)
         raw = findings.problems
         self._track(findings, now)
         self.streaks = {pid: self.streaks.get(pid, 0) + 1 for pid in raw}
 
         for pid, problem in raw.items():
             problem.last_ok = self.last_ok.get(pid)
-            problem.since = problem.last_ok or self.down_since[pid]
+            if problem.cause == CAUSE_SILENT:
+                # Down since it went quiet, not since it crossed the limit.
+                problem.since = (
+                    problem.last_heard
+                    or self.listening_since.get(pid)
+                    or self.down_since[pid]
+                )
+            else:
+                problem.since = problem.last_ok or self.down_since[pid]
             problem.offline_for = _seconds_since(problem.since, now)
             problem.returns_7d = len(self.returns.get(pid, []))
 
@@ -256,7 +285,13 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             self.down_since.setdefault(pid, stamp)
 
         # Forget deleted integrations and devices, and comebacks older than a week.
-        for store in (self.last_ok, self.down_since, self.returns):
+        for store in (
+            self.last_ok,
+            self.down_since,
+            self.returns,
+            self.last_heard,
+            self.listening_since,
+        ):
             for pid in store.keys() - findings.known:
                 del store[pid]
         for pid, stamps in list(self.returns.items()):
@@ -267,8 +302,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 del self.returns[pid]
 
     @callback
-    def scan(self) -> Findings:
+    def scan(self, now: datetime | None = None) -> Findings:
         """Find every config entry and hub device that currently looks broken."""
+        now = now or dt_util.utcnow()
         opts = self.options
         bad_states = {STATE_UNAVAILABLE}
         if opts[CONF_COUNT_UNKNOWN]:
@@ -277,6 +313,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         hub_domains = set(opts[CONF_HUB_DOMAINS])
         skip_entity_domains = set(opts[CONF_SKIP_ENTITY_DOMAINS])
         threshold = float(opts[CONF_THRESHOLD]) / 100
+        silence_limit = timedelta(hours=float(opts[CONF_SILENCE_HOURS]))
+        silence_domains = set(opts[CONF_SILENCE_DOMAINS]) if silence_limit else set()
         ignored = [rule for rule in self.rules.values() if rule.ignored]
         ignored_entries = {r.target_id for r in ignored if r.kind == KIND_ENTRY}
         ignored_devices = {r.target_id for r in ignored if r.kind == KIND_DEVICE}
@@ -303,6 +341,10 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         skipped = dict.fromkeys(
             ("ignored_integrations", "ignored_entries", "ignored_devices"), 0
         )
+        # Silence check: newest report per entry and hub device (absent if
+        # nothing was heard), and which ones are checked at all.
+        newest: dict[str, datetime] = {}
+        listened: set[str] = set()
 
         # Disabled entities have no state, so they are never counted.
         for state in self.hass.states.async_all():
@@ -326,14 +368,29 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             counts = entry_counts[reg_entry.config_entry_id]
             counts[0] += is_bad
             counts[1] += 1
-            if (
-                reg_entry.device_id
-                and entries[reg_entry.config_entry_id].domain in hub_domains
-            ):
+            per_device = bool(reg_entry.device_id) and entry.domain in hub_domains
+            if per_device:
                 counts = device_counts[reg_entry.device_id]
                 counts[0] += is_bad
                 counts[1] += 1
                 device_entry[reg_entry.device_id] = reg_entry.config_entry_id
+            if entry.domain in silence_domains:
+                pids = [entry.entry_id]
+                if per_device:
+                    pids.append(reg_entry.device_id)
+                listened.update(pids)
+                if heard := self._heard(state, reg_entry):
+                    for pid in pids:
+                        if pid not in newest or heard > newest[pid]:
+                            newest[pid] = heard
+
+        # Silent: what hasn't reported for longer than the limit, with when it
+        # was last heard (None: never heard from).
+        silent: dict[str, str | None] = {}
+        for pid in listened:
+            last = self._last_heard(pid, newest.get(pid), now)
+            if now - last > silence_limit:
+                silent[pid] = self.last_heard.get(pid)
 
         problems: dict[str, Problem] = {}
 
@@ -359,6 +416,38 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                         f"#config_entry={entry_id}"
                     ),
                 )
+                continue
+            if entry.domain not in silence_domains:
+                continue
+            if entry.domain in hub_domains:
+                # Most of a hub's devices silent at once: the broker or bridge
+                # is down, so one repair instead of one per device.
+                devices = [d for d, e in device_entry.items() if e == entry_id]
+                quiet = [d for d in devices if d in silent]
+                if len(devices) < 2 or 2 * len(quiet) <= len(devices):
+                    continue
+                heard = [silent[d] for d in quiet if silent[d]]
+                last_heard = max(heard, default=None)
+            elif entry_id in silent:
+                last_heard = silent[entry_id]
+            else:
+                continue
+            problems[entry_id] = Problem(
+                id=entry_id,
+                kind=KIND_ENTRY,
+                title=entry.title or entry.domain,
+                domain=entry.domain,
+                entry_id=entry_id,
+                detail=entry.state.value,
+                bad=bad,
+                total=total,
+                link=(
+                    f"/config/integrations/integration/{entry.domain}"
+                    f"#config_entry={entry_id}"
+                ),
+                cause=CAUSE_SILENT,
+                last_heard=last_heard,
+            )
         healthy = set(entries) - set(problems)
 
         # 2. Per device for hub integrations, unless the whole hub is down.
@@ -366,9 +455,12 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             entry_id = device_entry[device_id]
             if entry_id in problems:
                 continue  # can't tell how the device is doing
+            cause = CAUSE_UNAVAILABLE
             if bad / total <= threshold:
-                healthy.add(device_id)
-                continue
+                if device_id not in silent:
+                    healthy.add(device_id)
+                    continue
+                cause = CAUSE_SILENT
             device = dev_reg.async_get(device_id)
             if device is None or device.disabled_by:
                 continue
@@ -383,6 +475,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 bad=bad,
                 total=total,
                 link=f"/config/devices/device/{device_id}",
+                cause=cause,
+                last_heard=self.last_heard.get(device_id),
             )
 
         return Findings(
@@ -396,6 +490,44 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
                 for device in dr.async_entries_for_config_entry(dev_reg, entry_id)
             },
         )
+
+    @callback
+    def _heard(self, state: State, reg_entry: er.RegistryEntry) -> datetime | None:
+        """Return when an entity last reported, if after Device Doctor started.
+
+        A "last seen" timestamp sensor (Zigbee2MQTT) is used as is, since it
+        survives restarts.
+        """
+        if state.state == STATE_UNAVAILABLE:
+            return None
+        baseline = self._baseline.setdefault(state.entity_id, state.last_reported)
+        heard = state.last_reported if state.last_reported > baseline else None
+        if (
+            reg_entry.translation_key == "last_seen"
+            or state.entity_id.endswith("_last_seen")
+        ) and state.attributes.get("device_class") == "timestamp":
+            seen = dt_util.parse_datetime(state.state)
+            if seen and seen.tzinfo and (heard is None or seen > heard):
+                heard = dt_util.as_utc(seen)
+        return heard
+
+    @callback
+    def _last_heard(self, pid: str, newest: datetime | None, now: datetime) -> datetime:
+        """Store and return when something was last heard from.
+
+        Never heard from: since when Device Doctor has been listening, so the
+        silence limit still runs out for something that is dead from the start.
+        """
+        stored = self.last_heard.get(pid)
+        stored_at = dt_util.parse_datetime(stored) if stored else None
+        if newest is not None and (stored_at is None or newest > stored_at):
+            self.last_heard[pid] = newest.isoformat()
+            self.listening_since.pop(pid, None)
+            return newest
+        if stored_at is not None:
+            return stored_at
+        listening = self.listening_since.setdefault(pid, now.isoformat())
+        return dt_util.parse_datetime(listening) or now
 
     @callback
     def _sync_issues_and_events(
@@ -468,8 +600,9 @@ def _placeholders(hass: HomeAssistant, problem: Problem) -> dict[str, str]:
     since_text = "—"
     if since := dt_util.parse_datetime(problem.since) if problem.since else None:
         since_text = dt_util.as_local(since).strftime("%Y-%m-%d %H:%M")
-        if problem.last_ok is None:
-            # Never seen working, so it has been offline at least this long.
+        known = problem.last_heard if problem.cause == CAUSE_SILENT else problem.last_ok
+        if known is None:
+            # Never seen working (or heard from), so at least this long.
             since_text = f"≥ {since_text}"
     return {
         "title": problem.title,

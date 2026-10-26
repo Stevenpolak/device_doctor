@@ -36,6 +36,8 @@ from .const import (
     CONF_COUNT_UNKNOWN,
     CONF_HUB_DOMAINS,
     CONF_SCAN_INTERVAL,
+    CONF_SILENCE_DOMAINS,
+    CONF_SILENCE_HOURS,
     CONF_SKIP_DOMAINS,
     CONF_SKIP_ENTITY_DOMAINS,
     CONF_THRESHOLD,
@@ -76,7 +78,8 @@ class DeviceDoctorConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
     # 2: ignored entries and devices moved from the options into rules.
     # 3: ignored rules are their own subentry type.
-    MINOR_VERSION = 3
+    # 4: more skipped entity types (tts, stt, ...) for untouched setups.
+    MINOR_VERSION = 4
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -350,6 +353,9 @@ def build_schema(hass: HomeAssistant, opts: dict[str, Any]) -> vol.Schema:
             vol.Required(CONF_THRESHOLD, default=opts[CONF_THRESHOLD]): _number(
                 1, 100, "%"
             ),
+            vol.Required(CONF_SILENCE_HOURS, default=opts[CONF_SILENCE_HOURS]): _number(
+                0, 720, "h"
+            ),
         }
     )
     exclusions = vol.Schema(
@@ -364,6 +370,9 @@ def build_schema(hass: HomeAssistant, opts: dict[str, Any]) -> vol.Schema:
             vol.Optional(
                 CONF_HUB_DOMAINS, default=opts[CONF_HUB_DOMAINS]
             ): _multi_select(installed | set(opts[CONF_HUB_DOMAINS])),
+            vol.Optional(
+                CONF_SILENCE_DOMAINS, default=opts[CONF_SILENCE_DOMAINS]
+            ): _multi_select(installed | set(opts[CONF_SILENCE_DOMAINS])),
             vol.Optional(
                 CONF_SKIP_ENTITY_DOMAINS, default=opts[CONF_SKIP_ENTITY_DOMAINS]
             ): _multi_select({platform.value for platform in Platform}),

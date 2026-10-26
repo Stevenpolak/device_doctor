@@ -11,12 +11,14 @@
             "data": {
               "scan_interval": "Scaninterval",
               "confirmations": "Bevestigingen",
-              "threshold": "Drempel voor onbeschikbaar"
+              "threshold": "Drempel voor onbeschikbaar",
+              "silence_hours": "Stiltelimiet"
             },
             "data_description": {
               "scan_interval": "Hoe vaak er gescand wordt.",
               "confirmations": "Hoeveel scans achter elkaar iets kapot moet lijken voordat er een reparatie verschijnt. Met 2 vallen herstarts en korte haperingen weg.",
-              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is."
+              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is.",
+              "silence_hours": "Voor integraties die niet merken dat een apparaat weg is (zie Geavanceerd): meld een apparaat dat zo lang niets heeft doorgegeven. 0 zet dit uit."
             }
           },
           "exclusions": {
@@ -34,11 +36,13 @@
             "description": "De standaardinstellingen passen bij de meeste installaties.",
             "data": {
               "hub_domains": "Hub-integraties (per apparaat gecontroleerd)",
+              "silence_domains": "Integraties met stiltecontrole",
               "skip_entity_domains": "Genegeerde entiteittypes",
               "count_unknown": "'Onbekend' tellen als onbeschikbaar"
             },
             "data_description": {
               "hub_domains": "Integraties met één item voor veel apparaten (Zigbee, Z-Wave, MQTT). Elk apparaat wordt apart beoordeeld.",
+              "silence_domains": "Integraties waarvan apparaten hun laatste waarde blijven tonen als ze stoppen, zoals MQTT (Zigbee2MQTT zonder availability, OpenMQTTGateway). Voeg ZHA, Z-Wave JS of Matter niet toe: die markeren dode apparaten zelf als onbeschikbaar, en stille apparaten zouden vals alarm geven.",
               "skip_entity_domains": "Entiteittypes die normaal op 'onbekend' staan tot ze gebruikt worden, zoals knoppen en scènes.",
               "count_unknown": "Sommige integraties melden 'onbekend' in plaats van 'onbeschikbaar' als de verbinding wegvalt."
             }
@@ -61,12 +65,14 @@
             "data": {
               "scan_interval": "Scaninterval",
               "confirmations": "Bevestigingen",
-              "threshold": "Drempel voor onbeschikbaar"
+              "threshold": "Drempel voor onbeschikbaar",
+              "silence_hours": "Stiltelimiet"
             },
             "data_description": {
               "scan_interval": "Hoe vaak er gescand wordt.",
               "confirmations": "Hoeveel scans achter elkaar iets kapot moet lijken voordat er een reparatie verschijnt. Met 2 vallen herstarts en korte haperingen weg.",
-              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is."
+              "threshold": "Meld een integratie of apparaat als meer dan dit deel van de entiteiten onbeschikbaar is.",
+              "silence_hours": "Voor integraties die niet merken dat een apparaat weg is (zie Geavanceerd): meld een apparaat dat zo lang niets heeft doorgegeven. 0 zet dit uit."
             }
           },
           "exclusions": {
@@ -84,11 +90,13 @@
             "description": "De standaardinstellingen passen bij de meeste installaties.",
             "data": {
               "hub_domains": "Hub-integraties (per apparaat gecontroleerd)",
+              "silence_domains": "Integraties met stiltecontrole",
               "skip_entity_domains": "Genegeerde entiteittypes",
               "count_unknown": "'Onbekend' tellen als onbeschikbaar"
             },
             "data_description": {
               "hub_domains": "Integraties met één item voor veel apparaten (Zigbee, Z-Wave, MQTT). Elk apparaat wordt apart beoordeeld.",
+              "silence_domains": "Integraties waarvan apparaten hun laatste waarde blijven tonen als ze stoppen, zoals MQTT (Zigbee2MQTT zonder availability, OpenMQTTGateway). Voeg ZHA, Z-Wave JS of Matter niet toe: die markeren dode apparaten zelf als onbeschikbaar, en stille apparaten zouden vals alarm geven.",
               "skip_entity_domains": "Entiteittypes die normaal op 'onbekend' staan tot ze gebruikt worden, zoals knoppen en scènes.",
               "count_unknown": "Sommige integraties melden 'onbekend' in plaats van 'onbeschikbaar' als de verbinding wegvalt."
             }
@@ -245,6 +253,34 @@
         }
       }
     },
+    "entry_silent": {
+      "title": "{title} ({domain}) geeft niets meer door",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) geeft niets meer door",
+            "description": "Van {title} is al lang niets gehoord. De integratie merkt dat niet, dus de entiteiten blijven hun laatste waarden tonen. Hoort er een hele reeks apparaten bij, dan ligt de broker of bridge erachter (zoals de MQTT-broker of Zigbee2MQTT) waarschijnlijk plat.\n\n- Laatst gehoord: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Herladen** herstelt vaak een verbinding die ongemerkt is weggevallen.\n\n**Tijdelijk offline toestaan** als het maar af en toe iets doorgeeft. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de integratiepagina]({link})",
+            "menu_options": {
+              "reload": "Integratie herladen",
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    },
     "device_problem": {
       "title": "{title} is onbeschikbaar",
       "fix_flow": {
@@ -252,6 +288,33 @@
           "init": {
             "title": "{title} is onbeschikbaar",
             "description": "Dit {domain}-apparaat geeft geen gegevens meer door. Misschien is de batterij leeg, is het buiten bereik of heeft het geen stroom. Deze reparatie verdwijnt vanzelf zodra het apparaat weer gegevens doorgeeft.\n\n- Onbeschikbare entiteiten: {bad} van {total}\n- Offline sinds: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Tijdelijk offline toestaan** als het af en toe uit staat, zoals een tv of een omvormer van zonnepanelen 's nachts. Als het deze week een paar keer vanzelf terugkwam, is dat waarschijnlijk het geval. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de apparaatpagina]({link})",
+            "menu_options": {
+              "allow_offline": "Tijdelijk offline toestaan",
+              "ignore": "Negeren"
+            }
+          },
+          "allow_offline": {
+            "title": "{title} offline toestaan",
+            "description": "Device Doctor meldt {title} pas weer als het langer dan dit offline is. Je kunt deze regel aanpassen of verwijderen op de pagina van Device Doctor.",
+            "data": {
+              "allowed_offline": "Mag offline zijn voor"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Deze integratie bestaat niet meer.",
+          "reload_failed": "{title} kon niet worden herladen. Bekijk de logboeken voor de oorzaak.",
+          "not_loaded": "Device Doctor draait niet."
+        }
+      }
+    },
+    "device_silent": {
+      "title": "{title} geeft niets meer door",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} geeft niets meer door",
+            "description": "Dit {domain}-apparaat heeft al lang niets gestuurd. De integratie merkt dat niet, dus het apparaat blijft zijn laatste waarden tonen. Misschien is de batterij leeg, is het buiten bereik of heeft het geen stroom. Deze reparatie verdwijnt vanzelf zodra het apparaat weer gegevens doorgeeft.\n\n- Laatst gehoord: {since}\n- Deze week vanzelf teruggekomen: {returns_7d}\n\n**Tijdelijk offline toestaan** als het maar af en toe iets doorgeeft. **Negeren** als het voorgoed offline mag zijn. Beide kun je later aanpassen op de pagina van Device Doctor.\n\n[Open de apparaatpagina]({link})",
             "menu_options": {
               "allow_offline": "Tijdelijk offline toestaan",
               "ignore": "Negeren"

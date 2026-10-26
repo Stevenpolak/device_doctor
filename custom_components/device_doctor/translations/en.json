@@ -11,12 +11,14 @@
             "data": {
               "scan_interval": "Scan interval",
               "confirmations": "Confirmations",
-              "threshold": "Unavailable threshold"
+              "threshold": "Unavailable threshold",
+              "silence_hours": "Silence limit"
             },
             "data_description": {
               "scan_interval": "How often to scan.",
               "confirmations": "How many scans in a row something must look broken before a repair is raised. 2 filters out reboots and short blips.",
-              "threshold": "Flag an integration or device when more than this share of its entities is unavailable."
+              "threshold": "Flag an integration or device when more than this share of its entities is unavailable.",
+              "silence_hours": "For integrations that don't notice when a device is gone (see Advanced): flag a device that hasn't reported for this long. 0 turns this off."
             }
           },
           "exclusions": {
@@ -34,11 +36,13 @@
             "description": "The defaults suit most setups.",
             "data": {
               "hub_domains": "Hub integrations (checked per device)",
+              "silence_domains": "Silence-checked integrations",
               "skip_entity_domains": "Ignored entity types",
               "count_unknown": "Count 'unknown' as unavailable"
             },
             "data_description": {
               "hub_domains": "Integrations with one entry for many devices (Zigbee, Z-Wave, MQTT). Each device is judged on its own.",
+              "silence_domains": "Integrations whose devices keep showing their last value when they stop, such as MQTT (Zigbee2MQTT without availability, OpenMQTTGateway). Don't add ZHA, Z-Wave JS or Matter: they mark dead devices unavailable themselves, and quiet devices would be false alarms.",
               "skip_entity_domains": "Entity types that normally sit at 'unknown' until used, such as buttons and scenes.",
               "count_unknown": "Some integrations report 'unknown' rather than 'unavailable' when they lose connection."
             }
@@ -61,12 +65,14 @@
             "data": {
               "scan_interval": "Scan interval",
               "confirmations": "Confirmations",
-              "threshold": "Unavailable threshold"
+              "threshold": "Unavailable threshold",
+              "silence_hours": "Silence limit"
             },
             "data_description": {
               "scan_interval": "How often to scan.",
               "confirmations": "How many scans in a row something must look broken before a repair is raised. 2 filters out reboots and short blips.",
-              "threshold": "Flag an integration or device when more than this share of its entities is unavailable."
+              "threshold": "Flag an integration or device when more than this share of its entities is unavailable.",
+              "silence_hours": "For integrations that don't notice when a device is gone (see Advanced): flag a device that hasn't reported for this long. 0 turns this off."
             }
           },
           "exclusions": {
@@ -84,11 +90,13 @@
             "description": "The defaults suit most setups.",
             "data": {
               "hub_domains": "Hub integrations (checked per device)",
+              "silence_domains": "Silence-checked integrations",
               "skip_entity_domains": "Ignored entity types",
               "count_unknown": "Count 'unknown' as unavailable"
             },
             "data_description": {
               "hub_domains": "Integrations with one entry for many devices (Zigbee, Z-Wave, MQTT). Each device is judged on its own.",
+              "silence_domains": "Integrations whose devices keep showing their last value when they stop, such as MQTT (Zigbee2MQTT without availability, OpenMQTTGateway). Don't add ZHA, Z-Wave JS or Matter: they mark dead devices unavailable themselves, and quiet devices would be false alarms.",
               "skip_entity_domains": "Entity types that normally sit at 'unknown' until used, such as buttons and scenes.",
               "count_unknown": "Some integrations report 'unknown' rather than 'unavailable' when they lose connection."
             }
@@ -245,6 +253,34 @@
         }
       }
     },
+    "entry_silent": {
+      "title": "{title} ({domain}) has stopped reporting",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) has stopped reporting",
+            "description": "Nothing has been heard from {title} for a long time. Its integration doesn't notice that, so its entities keep showing their last values. If it serves many devices, the broker or bridge behind it (such as the MQTT broker or Zigbee2MQTT) is probably down.\n\n- Last heard: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Reload** sometimes restores a connection that dropped without notice.\n\n**Allow offline for a while** if it only reports now and then. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the integration page]({link})",
+            "menu_options": {
+              "reload": "Reload integration",
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
+        }
+      }
+    },
     "device_problem": {
       "title": "{title} is unavailable",
       "fix_flow": {
@@ -252,6 +288,33 @@
           "init": {
             "title": "{title} is unavailable",
             "description": "This {domain} device is not reporting. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\n- Unavailable entities: {bad} of {total}\n- Offline since: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Allow offline for a while** if it is switched off now and then, such as a TV or a solar inverter at night. If it came back by itself several times this week, that is probably the case. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the device page]({link})",
+            "menu_options": {
+              "allow_offline": "Allow offline for a while",
+              "ignore": "Ignore"
+            }
+          },
+          "allow_offline": {
+            "title": "Allow {title} to be offline",
+            "description": "Device Doctor will only report {title} again once it has been offline for longer than this. You can change or delete this rule on the Device Doctor page.",
+            "data": {
+              "allowed_offline": "May be offline for"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "This integration no longer exists.",
+          "reload_failed": "{title} could not be reloaded. Check the logs for the cause.",
+          "not_loaded": "Device Doctor is not running."
+        }
+      }
+    },
+    "device_silent": {
+      "title": "{title} has stopped reporting",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} has stopped reporting",
+            "description": "This {domain} device hasn't sent anything for a long time. Its integration doesn't notice that, so the device keeps showing its last values. It may be out of battery, out of range, or unpowered. This repair disappears by itself once the device reports again.\n\n- Last heard: {since}\n- Came back by itself in the past week: {returns_7d}\n\n**Allow offline for a while** if it only reports now and then. **Ignore** if it may be offline for good. Both can be changed later on the Device Doctor page.\n\n[Open the device page]({link})",
             "menu_options": {
               "allow_offline": "Allow offline for a while",
               "ignore": "Ignore"

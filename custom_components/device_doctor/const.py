@@ -20,11 +20,16 @@ CONF_IGNORED_ENTRIES = "ignored_entries"
 CONF_HUB_DOMAINS = "hub_domains"
 CONF_SKIP_ENTITY_DOMAINS = "skip_entity_domains"
 CONF_COUNT_UNKNOWN = "count_unknown"
+CONF_SILENCE_HOURS = "silence_hours"
+CONF_SILENCE_DOMAINS = "silence_domains"
 
 DEFAULT_OPTIONS: dict[str, object] = {
     CONF_SCAN_INTERVAL: 10,  # minutes
     CONF_CONFIRMATIONS: 2,  # consecutive scans before a problem is raised
     CONF_THRESHOLD: 50,  # percent of entities unavailable
+    # A device that hasn't reported for this long counts as down; 0 is off.
+    # 25 hours, like Zigbee2MQTT's passive availability.
+    CONF_SILENCE_HOURS: 25,
     # Helpers derive their state from other entities, so they only echo the
     # real failure elsewhere. Phones sleep.
     CONF_SKIP_DOMAINS: [
@@ -44,9 +49,27 @@ DEFAULT_OPTIONS: dict[str, object] = {
     # Integrations with one config entry for many devices: judged per device.
     CONF_HUB_DOMAINS: ["deconz", "hue", "matter", "mqtt", "zha", "zwave_js"],
     # Entity domains that sit at "unknown" until first used.
-    CONF_SKIP_ENTITY_DOMAINS: ["button", "event", "image", "notify", "scene", "update"],
+    CONF_SKIP_ENTITY_DOMAINS: [
+        "ai_task",
+        "button",
+        "conversation",
+        "event",
+        "image",
+        "notify",
+        "scene",
+        "stt",
+        "tts",
+        "update",
+        "wake_word",
+    ],
     CONF_COUNT_UNKNOWN: True,
+    # Integrations that don't notice a device has gone, so it keeps showing
+    # its last value: checked for silence. ZHA, Z-Wave JS, Matter and Hue mark
+    # dead devices unavailable themselves.
+    CONF_SILENCE_DOMAINS: ["mqtt"],
 }
+# Skipped entity domains before 1.4, to extend the list of untouched setups.
+SKIP_ENTITY_DOMAINS_1_3 = ["button", "event", "image", "notify", "scene", "update"]
 
 FAILED_ENTRY_STATES = frozenset(
     {
@@ -62,10 +85,16 @@ SECTION_SCANNING = "scanning"
 SECTION_EXCLUSIONS = "exclusions"
 SECTION_ADVANCED = "advanced"
 SECTIONS: dict[str, tuple[str, ...]] = {
-    SECTION_SCANNING: (CONF_SCAN_INTERVAL, CONF_CONFIRMATIONS, CONF_THRESHOLD),
+    SECTION_SCANNING: (
+        CONF_SCAN_INTERVAL,
+        CONF_CONFIRMATIONS,
+        CONF_THRESHOLD,
+        CONF_SILENCE_HOURS,
+    ),
     SECTION_EXCLUSIONS: (CONF_SKIP_DOMAINS,),
     SECTION_ADVANCED: (
         CONF_HUB_DOMAINS,
+        CONF_SILENCE_DOMAINS,
         CONF_SKIP_ENTITY_DOMAINS,
         CONF_COUNT_UNKNOWN,
     ),
@@ -95,6 +124,11 @@ ALLOWED_OFFLINE_SECONDS: dict[str, int] = {
     "7d": 7 * 86400,
     "30d": 30 * 86400,
 }
+
+# Why something counts as down: most entities unavailable (or a failed
+# setup), or nothing heard from it for longer than the silence limit.
+CAUSE_UNAVAILABLE = "unavailable"
+CAUSE_SILENT = "silent"
 
 # Something that came back this often in a week is probably switched off on
 # purpose, so the repair suggests "allow offline" first.

@@ -314,7 +314,7 @@ async def test_migrates_0_4_ignore_lists(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(doctor.entry_id)
     await hass.async_block_till_done()
 
-    assert doctor.minor_version == 3
+    assert doctor.minor_version == 4
     assert CONF_IGNORED_ENTRIES not in doctor.options
     rules = async_get_rules(doctor)
     assert rules[KIND_ENTRY, "tv_entry"].ignored
@@ -386,7 +386,7 @@ async def test_migrates_0_5_0b1_always_rules(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(doctor.entry_id)
     await hass.async_block_till_done()
 
-    assert doctor.minor_version == 3
+    assert doctor.minor_version == 4
     types = {sub.unique_id: sub.subentry_type for sub in doctor.subentries.values()}
     assert types == {"entry_tv": "ignored", "entry_solar": "allowed_offline"}
     assert async_get_rules(doctor)[KIND_ENTRY, "solar"].seconds == 86400

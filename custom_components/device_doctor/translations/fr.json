@@ -11,12 +11,14 @@
             "data": {
               "scan_interval": "Intervalle d'analyse",
               "confirmations": "Confirmations",
-              "threshold": "Seuil d’indisponibilité"
+              "threshold": "Seuil d’indisponibilité",
+              "silence_hours": "Délai de silence"
             },
             "data_description": {
               "scan_interval": "Fréquence des analyses.",
               "confirmations": "Combien d'analyses consécutives, durant lesquelles un élément doit apparaître défectueux, sont nécessaires pour déclencher une demande de réparation ? Ce paramètre permet d'écarter les redémarrages et les anomalies passagères de courte durée.",
-              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil."
+              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil.",
+              "silence_hours": "Pour les intégrations qui ne détectent pas qu’un appareil a disparu (voir Avancé) : signale un appareil qui n’a rien transmis depuis aussi longtemps. 0 désactive cette vérification."
             }
           },
           "exclusions": {
@@ -34,11 +36,13 @@
             "description": "Les paramètres par défaut conviennent à la plupart des configurations.",
             "data": {
               "hub_domains": "Intégrations au hub (vérifiées par appareil)",
+              "silence_domains": "Intégrations vérifiées pour le silence",
               "skip_entity_domains": "Types d’entités ignorés",
               "count_unknown": "Considérer « inconnu » comme indisponible"
             },
             "data_description": {
               "hub_domains": "Intégrations avec un point d'entrée unique pour de nombreux appareils (Zigbee, Z-Wave, MQTT). Chaque appareil est évalué individuellement.",
+              "silence_domains": "Intégrations dont les appareils continuent d’afficher leur dernière valeur lorsqu’ils s’arrêtent, comme MQTT (Zigbee2MQTT sans availability, OpenMQTTGateway). N’ajoutez pas ZHA, Z-Wave JS ou Matter : ils marquent eux-mêmes les appareils morts comme indisponibles, et les appareils silencieux déclencheraient de fausses alertes.",
               "skip_entity_domains": "Types d’entités qui restent généralement à l’état « inconnu » tant qu’ils ne sont pas utilisés, comme les boutons et les scènes.",
               "count_unknown": "Certaines intégrations indiquent « inconnu » plutôt que « indisponible » lorsqu’elles perdent la connexion."
             }
@@ -61,12 +65,14 @@
             "data": {
               "scan_interval": "Intervalle d'analyse",
               "confirmations": "Confirmations",
-              "threshold": "Seuil d’indisponibilité"
+              "threshold": "Seuil d’indisponibilité",
+              "silence_hours": "Délai de silence"
             },
             "data_description": {
               "scan_interval": "Fréquence des analyses.",
               "confirmations": "Combien d'analyses consécutives, durant lesquelles un élément doit apparaître défectueux, sont nécessaires pour déclencher une demande de réparation ? Ce paramètre permet d'écarter les redémarrages et les anomalies passagères de courte durée",
-              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil."
+              "threshold": "Signale une intégration ou un appareil lorsque la proportion de ses entités indisponibles dépasse ce seuil.",
+              "silence_hours": "Pour les intégrations qui ne détectent pas qu’un appareil a disparu (voir Avancé) : signale un appareil qui n’a rien transmis depuis aussi longtemps. 0 désactive cette vérification."
             }
           },
           "exclusions": {
@@ -84,11 +90,13 @@
             "description": "Les paramètres par défaut conviennent à la plupart des configurations.",
             "data": {
               "hub_domains": "Intégrations au hub (vérifiées par appareil)",
+              "silence_domains": "Intégrations vérifiées pour le silence",
               "skip_entity_domains": "Types d’entités ignorés",
               "count_unknown": "Considérer « inconnu » comme indisponible"
             },
             "data_description": {
               "hub_domains": "Intégrations avec un point d'entrée unique pour de nombreux appareils (Zigbee, Z-Wave, MQTT). Chaque appareil est évalué individuellement.",
+              "silence_domains": "Intégrations dont les appareils continuent d’afficher leur dernière valeur lorsqu’ils s’arrêtent, comme MQTT (Zigbee2MQTT sans availability, OpenMQTTGateway). N’ajoutez pas ZHA, Z-Wave JS ou Matter : ils marquent eux-mêmes les appareils morts comme indisponibles, et les appareils silencieux déclencheraient de fausses alertes.",
               "skip_entity_domains": "Types d’entités qui restent généralement à l’état « inconnu » tant qu’ils ne sont pas utilisés, comme les boutons et les scènes.",
               "count_unknown": "Certaines intégrations indiquent « inconnu » plutôt que « indisponible » lorsqu’elles perdent la connexion."
             }
@@ -245,6 +253,34 @@
         }
       }
     },
+    "entry_silent": {
+      "title": "{title} ({domain}) ne transmet plus rien",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ({domain}) ne transmet plus rien",
+            "description": "Aucun signal de {title} depuis longtemps. Son intégration ne s’en aperçoit pas, si bien que ses entités continuent d’afficher leurs dernières valeurs. Si elle dessert de nombreux appareils, le broker ou la passerelle (comme le broker MQTT ou Zigbee2MQTT) est probablement hors service.\n\n- Dernier signal : {since}\n- Revenu tout seul au cours de la semaine dernière : {returns_7d}\n\n**Recharger** permet souvent de rétablir une connexion qui s’est interrompue silencieusement.\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il ne transmet que de temps à autre. **Ignorer** s’il doit rester hors ligne définitivement. Ces deux paramètres pourront être modifiés ultérieurement sur la page « Device Doctor ».\n\n[Ouvrir la page d’intégration]({link})",
+            "menu_options": {
+              "reload": "Recharger l'intégration",
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain tempsr",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    },
     "device_problem": {
       "title": "{title} est indisponible",
       "fix_flow": {
@@ -252,6 +288,33 @@
           "init": {
             "title": "{title} est indisponible",
             "description": "Cet appareil {domain} ne transmet aucune information. Il est peut-être déchargé, hors de portée ou non alimenté. Cette réparation disparaît d’elle-même une fois que l’appareil émet à nouveau un signal.\n\n- Entités indisponibles: {bad} de {total}\n- Hors ligne depuis: {since}\n- C’est revenu tout seul au cours de la semaine dernière.: {returns_7d}\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il est éteint de temps à autre, comme un téléviseur ou un onduleur solaire pendant la nuit. Si c’est revenu tout seul à plusieurs reprises cette semaine, c’est probablement le cas.. **Ignorer** s'il doit rester hors ligne définitivement. Ces deux paramètres pourront être modifiés ultérieurement sur la page « Device Doctor ».\n\n[Ouvrir la page de l’appareil]({link})",
+            "menu_options": {
+              "allow_offline": "Autoriser le mode hors ligne pendant un certain temps",
+              "ignore": "Ignorer"
+            }
+          },
+          "allow_offline": {
+            "title": "Autoriser {title} à être hors ligne",
+            "description": "Device Doctor ne signalera à nouveau {title} que lorsque celui-ci sera resté hors ligne pendant une durée supérieure à celle-ci. Vous pouvez modifier ou supprimer cette règle sur la page Device Doctor.",
+            "data": {
+              "allowed_offline": "Peut être hors ligne pendant"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Cette intégration n’existe plus.",
+          "reload_failed": "{title} n’a pas pu être rechargé. Consultez les journaux pour en connaître la cause.",
+          "not_loaded": "Device Doctor n’est pas en cours d’exécution."
+        }
+      }
+    },
+    "device_silent": {
+      "title": "{title} ne transmet plus rien",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "{title} ne transmet plus rien",
+            "description": "Cet appareil {domain} n’a rien transmis depuis longtemps. Son intégration ne s’en aperçoit pas, si bien que l’appareil continue d’afficher ses dernières valeurs. Il est peut-être déchargé, hors de portée ou non alimenté. Cette réparation disparaît d’elle-même une fois que l’appareil émet à nouveau un signal.\n\n- Dernier signal : {since}\n- Revenu tout seul au cours de la semaine dernière : {returns_7d}\n\n**Autoriser le mode hors ligne pendant un certain temps** s’il ne transmet que de temps à autre. **Ignorer** s’il doit rester hors ligne définitivement. Ces deux paramètres pourront être modifiés ultérieurement sur la page « Device Doctor ».\n\n[Ouvrir la page de l’appareil]({link})",
             "menu_options": {
               "allow_offline": "Autoriser le mode hors ligne pendant un certain temps",
               "ignore": "Ignorer"
