@@ -69,6 +69,7 @@ class Problem:
     offline_for: int = 0  # seconds
     returns_7d: int = 0  # times it came back in the past week
     link: str = ""  # device or integration page in the Home Assistant UI
+    reported_at: str | None = None  # when its repair was opened (ISO)
 
     @property
     def issue_id(self) -> str:
@@ -112,6 +113,10 @@ class ScanResult:
     confirmed: dict[str, Problem] = field(default_factory=dict)
     skipped: dict[str, int] | None = None  # None until the first scan
     allowed: int = 0  # offline, but within an allowed-offline rule
+    # Everything found broken, including what a rule allows to be offline.
+    offline: dict[str, Problem] = field(default_factory=dict)
+    # Integration entries and hub devices that are working right now.
+    healthy: set[str] = field(default_factory=set)
 
 
 class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
@@ -234,6 +239,8 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
             confirmed=confirmed,
             skipped=findings.skipped,
             allowed=len(raw) - len(candidates),
+            offline=raw,
+            healthy=findings.healthy,
         )
 
     @callback
@@ -398,6 +405,9 @@ class DeviceDoctorCoordinator(DataUpdateCoordinator[ScanResult]):
         previous = self.data.confirmed if self.data else self._restored
 
         for pid, problem in confirmed.items():
+            problem.reported_at = (
+                previous[pid].reported_at if pid in previous else None
+            ) or now.isoformat()
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

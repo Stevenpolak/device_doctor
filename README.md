@@ -93,6 +93,18 @@ normally again. Use the **+ Ignore** and **+ Allow offline** buttons at the
 top to add one without waiting for a repair. The list is sorted alphabetically
 by name.
 
+**A device with a rule shows it on its own page**, under *Diagnostic*:
+
+- **Device Doctor rule**: *Ignored*, or *Allowed offline · 1 day* (or how long
+  you chose)
+- **Device Doctor status** (allowed offline only): *OK*, *Allowed offline*
+  while it's offline within the allowed time, or *Problem* once a repair is
+  open. Its attributes say when it was last seen working, since when it's
+  offline, and when it is (or was) reported as a problem.
+
+A rule for a whole integration shows on its device only if the integration has
+exactly one device.
+
 **To change what is checked**, go to **Settings → Devices & services → Device
 Doctor → Configure**. The settings are grouped in three sections:
 

@@ -118,6 +118,35 @@
             "name": "Genegeerde apparaten"
           }
         }
+      },
+      "rule": {
+        "name": "Device Doctor-regel",
+        "state": {
+          "1d": "Offline toegestaan · 1 dag",
+          "3d": "Offline toegestaan · 3 dagen",
+          "7d": "Offline toegestaan · 1 week",
+          "30d": "Offline toegestaan · 30 dagen",
+          "ignored": "Genegeerd"
+        }
+      },
+      "rule_status": {
+        "name": "Device Doctor-status",
+        "state": {
+          "ok": "OK",
+          "allowed_offline": "Offline toegestaan",
+          "problem": "Probleem"
+        },
+        "state_attributes": {
+          "last_ok": {
+            "name": "Laatst werkend gezien"
+          },
+          "offline_since": {
+            "name": "Offline sinds"
+          },
+          "reported_at": {
+            "name": "Gemeld als probleem"
+          }
+        }
       }
     },
     "binary_sensor": {

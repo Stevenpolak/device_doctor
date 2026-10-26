@@ -38,6 +38,7 @@ class Rule:
     kind: str
     target_id: str
     seconds: int | None  # None: ignored, never checked
+    allowed: str = IGNORE  # duration key such as "1d", or IGNORE
 
     @property
     def ignored(self) -> bool:
@@ -53,20 +54,26 @@ def rule_unique_id(kind: str, target_id: str) -> str:
 @callback
 def async_get_rules(entry: ConfigEntry) -> dict[tuple[str, str], Rule]:
     """Return the rules of the Device Doctor entry, keyed by (kind, target id)."""
-    rules: dict[tuple[str, str], Rule] = {}
-    for subentry in entry.subentries.values():
-        if subentry.subentry_type == SUBENTRY_IGNORED:
-            seconds = None
-        elif subentry.subentry_type == SUBENTRY_ALLOWED_OFFLINE:
-            allowed = subentry.data.get(RULE_ALLOWED_OFFLINE)
-            if allowed not in ALLOWED_OFFLINE_SECONDS:
-                continue
-            seconds = ALLOWED_OFFLINE_SECONDS[allowed]
-        else:
-            continue
-        kind, target_id = subentry.data[RULE_TARGET_KIND], subentry.data[RULE_TARGET_ID]
-        rules[kind, target_id] = Rule(kind, target_id, seconds)
-    return rules
+    return {
+        (rule.kind, rule.target_id): rule
+        for subentry in entry.subentries.values()
+        if (rule := rule_of(subentry))
+    }
+
+
+def rule_of(subentry: ConfigSubentry) -> Rule | None:
+    """Return the rule a subentry holds, or None if it isn't a valid rule."""
+    if subentry.subentry_type == SUBENTRY_IGNORED:
+        allowed, seconds = IGNORE, None
+    elif subentry.subentry_type == SUBENTRY_ALLOWED_OFFLINE:
+        allowed = subentry.data.get(RULE_ALLOWED_OFFLINE)
+        if allowed not in ALLOWED_OFFLINE_SECONDS:
+            return None
+        seconds = ALLOWED_OFFLINE_SECONDS[allowed]
+    else:
+        return None
+    kind, target_id = subentry.data[RULE_TARGET_KIND], subentry.data[RULE_TARGET_ID]
+    return Rule(kind, target_id, seconds, allowed)
 
 
 @callback
@@ -194,13 +201,31 @@ def async_target_title(hass: HomeAssistant, kind: str, target_id: str) -> str:
         return target_id
     name = entry.title or entry.domain
     # One device, one name: its device name beats e.g. a serial number title.
-    # Sub-devices (such as a printer's spool holder) don't count.
-    devices = dr.async_entries_for_config_entry(dr.async_get(hass), target_id)
+    if main := async_main_device(hass, target_id):
+        name = main.name_by_user or main.name or name
+    return f"{name} ({integration_name(hass, entry.domain)})"
+
+
+@callback
+def async_target_device(
+    hass: HomeAssistant, kind: str, target_id: str
+) -> dr.DeviceEntry | None:
+    """Return the device a rule is about: the device, or the entry's only one."""
+    if kind == KIND_DEVICE:
+        return dr.async_get(hass).async_get(target_id)
+    return async_main_device(hass, target_id)
+
+
+@callback
+def async_main_device(hass: HomeAssistant, entry_id: str) -> dr.DeviceEntry | None:
+    """Return an integration entry's device if it has exactly one.
+
+    Sub-devices (such as a printer's spool holder) don't count.
+    """
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry_id)
     ids = {device.id for device in devices}
     main = [device for device in devices if device.via_device_id not in ids]
-    if len(main) == 1:
-        name = main[0].name_by_user or main[0].name or name
-    return f"{name} ({integration_name(hass, entry.domain)})"
+    return main[0] if len(main) == 1 else None
 
 
 @callback

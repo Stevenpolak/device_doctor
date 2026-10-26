@@ -118,6 +118,35 @@
             "name": "Ignored devices"
           }
         }
+      },
+      "rule": {
+        "name": "Device Doctor rule",
+        "state": {
+          "1d": "Allowed offline · 1 day",
+          "3d": "Allowed offline · 3 days",
+          "7d": "Allowed offline · 1 week",
+          "30d": "Allowed offline · 30 days",
+          "ignored": "Ignored"
+        }
+      },
+      "rule_status": {
+        "name": "Device Doctor status",
+        "state": {
+          "ok": "OK",
+          "allowed_offline": "Allowed offline",
+          "problem": "Problem"
+        },
+        "state_attributes": {
+          "last_ok": {
+            "name": "Last seen working"
+          },
+          "offline_since": {
+            "name": "Offline since"
+          },
+          "reported_at": {
+            "name": "Reported as a problem"
+          }
+        }
       }
     },
     "binary_sensor": {

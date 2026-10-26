@@ -3,5 +3,27 @@
     "reload_problems": {
       "service": "mdi:restart"
     }
+  },
+  "entity": {
+    "sensor": {
+      "rule": {
+        "default": "mdi:clipboard-text-outline",
+        "state": {
+          "ignored": "mdi:eye-off",
+          "1d": "mdi:timer-sand",
+          "3d": "mdi:timer-sand",
+          "7d": "mdi:timer-sand",
+          "30d": "mdi:timer-sand"
+        }
+      },
+      "rule_status": {
+        "default": "mdi:stethoscope",
+        "state": {
+          "ok": "mdi:check-circle-outline",
+          "allowed_offline": "mdi:power-plug-off-outline",
+          "problem": "mdi:alert-circle-outline"
+        }
+      }
+    }
   }
 }

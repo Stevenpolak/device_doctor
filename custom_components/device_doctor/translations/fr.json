@@ -118,6 +118,35 @@
             "name": "Appareils ignorés"
           }
         }
+      },
+      "rule": {
+        "name": "Règle Device Doctor",
+        "state": {
+          "1d": "Autorisé hors ligne · 1 jour",
+          "3d": "Autorisé hors ligne · 3 jours",
+          "7d": "Autorisé hors ligne · 1 semaine",
+          "30d": "Autorisé hors ligne · 30 jours",
+          "ignored": "Ignoré"
+        }
+      },
+      "rule_status": {
+        "name": "État Device Doctor",
+        "state": {
+          "ok": "OK",
+          "allowed_offline": "Autorisé hors ligne",
+          "problem": "Problème"
+        },
+        "state_attributes": {
+          "last_ok": {
+            "name": "Dernier fonctionnement constaté"
+          },
+          "offline_since": {
+            "name": "Hors ligne depuis"
+          },
+          "reported_at": {
+            "name": "Signalé comme problème"
+          }
+        }
       }
     },
     "binary_sensor": {

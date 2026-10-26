@@ -20,6 +20,7 @@ import pytest
 
 from custom_components.device_doctor.coordinator import Problem, _placeholders
 from custom_components.device_doctor.repairs import PLACEHOLDERS
+from custom_components.device_doctor.sensor import RULE_OPTIONS, STATUS_OPTIONS
 
 TRANSLATIONS = (
     Path(__file__).parent.parent
@@ -125,3 +126,25 @@ def test_rule_popups_only_use_supplied_placeholders() -> None:
     for path, text in flatten(EN["config_subentries"]).items():
         missing = placeholders(text) - supplied
         assert not missing, f"config_subentries.{path} uses {missing}"
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_rule_sensor_states_complete(language: str) -> None:
+    """Every rule sensor state is translated, with the duration picker's words."""
+    texts = load(language)
+    for key, options in (
+        ("rule", RULE_OPTIONS),
+        ("rule_status", STATUS_OPTIONS),
+    ):
+        assert f"entity.sensor.{key}.name" in texts, f"{language}: {key} name"
+        for option in options:
+            path = f"entity.sensor.{key}.state.{option}"
+            assert path in texts, f"{language}: {path} missing"
+    for duration, label in (
+        (path.rsplit(".", 1)[1], text)
+        for path, text in texts.items()
+        if path.startswith("selector.allowed_offline.options.")
+    ):
+        assert texts[f"entity.sensor.rule.state.{duration}"] == (
+            f"{texts['entity.sensor.rule_status.state.allowed_offline']} · {label}"
+        ), f"{language}: rule state {duration} doesn't match the duration picker"
