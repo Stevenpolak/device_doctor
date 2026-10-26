@@ -27,8 +27,8 @@ It catches:
 
 - an integration that failed to start, or keeps retrying
 - an integration that claims to be running while most of its sensors are unavailable
-- a single Zigbee, Z-Wave, Matter or MQTT device that has gone silent, such as a
-  leak sensor with a flat battery
+- a single Zigbee, Z-Wave, Matter or MQTT device that has become unavailable,
+  such as a leak sensor with a flat battery
 - an MQTT device that stopped sending but keeps showing its last values, such
   as a Zigbee2MQTT sensor without availability, a 433 MHz weather station or a
   Grott inverter
@@ -148,8 +148,12 @@ automation:
         data:
           title: "Device Doctor"
           message: >
-            {{ trigger.event.data.title }} stopped working
-            ({{ trigger.event.data.bad }} of {{ trigger.event.data.total }} sensors unavailable)
+            {% set e = trigger.event.data %}
+            {% if e.cause == 'silent' %}
+              {{ e.title }} hasn't reported since {{ as_local(as_datetime(e.since)).strftime('%a %H:%M') }}
+            {% else %}
+              {{ e.title }} stopped working ({{ e.bad }} of {{ e.total }} sensors unavailable)
+            {% endif %}
 ```
 
 **Reload a broken integration automatically, once:**

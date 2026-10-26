@@ -53,6 +53,16 @@ def _entity(hass: HomeAssistant, subentry_id: str, key: str) -> er.RegistryEntry
     return ent_reg.async_get(entity_id) if entity_id else None
 
 
+def owners(device: dr.DeviceEntry) -> set[str]:
+    """Return the config entries a device belongs to.
+
+    Home Assistant 2026.10 gives a device a single config entry.
+    """
+    if hasattr(device, "config_entry_id"):
+        return {device.config_entry_id}
+    return set(device.config_entries)
+
+
 async def _scan(hass: HomeAssistant, doctor: MockConfigEntry) -> None:
     await doctor.runtime_data.async_refresh()
     await hass.async_block_till_done()
@@ -74,7 +84,7 @@ async def test_device_rule_sensors_on_target_device(hass: HomeAssistant) -> None
     assert hass.states.get(rule.entity_id).name == "zha device 0 Device Doctor rule"
     # Device Doctor isn't added to the other integration's device.
     device = dr.async_get(hass).async_get(device_id)
-    assert device.config_entries == {zha.entry_id}
+    assert owners(device) == {zha.entry_id}
 
 
 async def test_ignored_rule_has_no_status(hass: HomeAssistant) -> None:
@@ -117,7 +127,7 @@ async def test_deleting_rule_removes_sensors(hass: HomeAssistant) -> None:
     assert _entity(hass, subentry_id, "rule") is None
     assert _entity(hass, subentry_id, "rule_status") is None
     device = dr.async_get(hass).async_get(device_id)
-    assert device.config_entries == {zha.entry_id}
+    assert owners(device) == {zha.entry_id}
 
 
 async def test_changing_duration_updates_rule_sensor(hass: HomeAssistant) -> None:
