@@ -35,12 +35,13 @@ before you hear about it. A reboot or a short Wi-Fi hiccup won't bother you.
 
 ## Installation
 
-Device Doctor needs Home Assistant 2026.3 or newer.
+Device Doctor is available in the default HACS store and needs Home Assistant
+2026.3 or newer.
 
 [![Open your Home Assistant instance and open Device Doctor inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Stevenpolak&repository=device_doctor&category=integration)
 
-1. Click the button above to open Device Doctor in HACS (it offers to add the
-   repository if needed), download it, and restart Home Assistant
+1. Click the button above to open Device Doctor in HACS, download it, and
+   restart Home Assistant
 2. Then add the integration:
 
    [![Open your Home Assistant instance and start setting up Device Doctor.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=device_doctor)
@@ -51,10 +52,16 @@ homes, so you can just click **Submit**.
 <details>
 <summary>Without the buttons</summary>
 
-1. In HACS, open the menu (⋮) and choose **Custom repositories**
-2. Add `https://github.com/Stevenpolak/device_doctor` with type **Integration**
-3. Search for **Device Doctor**, download it, and restart Home Assistant
-4. Go to **Settings → Devices & services → Add integration** and pick **Device Doctor**
+1. Open **HACS**, search for **Device Doctor**, download it, and restart Home Assistant
+2. Go to **Settings → Devices & services → Add integration** and pick **Device Doctor**
+
+</details>
+
+<details>
+<summary>Added it as a custom repository before?</summary>
+
+Nothing to do: updates keep coming through HACS, and your settings stay as
+they are.
 
 </details>
 
